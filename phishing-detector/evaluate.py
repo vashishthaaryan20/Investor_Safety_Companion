@@ -1,13 +1,17 @@
 """evaluate.py - test the already-saved model without retraining.
 
-Run:  python evaluate.py          (uses the test split; falls back to val if there is no test split)
+Run from src/:   python -m phishing-detector.cli eval
+Uses the test split; falls back to val if there is no test split.
 """
 import time
 
 import torch
 
-from config import DATA_DIR, CLASS_NAMES, device
-from main import load_trained_model, get_test_loader, get_data_loaders, fmt_time
+from . import storage
+from .config import CLASS_NAMES, device
+from .data import get_data_loaders, get_test_loader
+from .model import load_trained_model
+from .utils import fmt_time
 
 
 def main():
@@ -19,7 +23,7 @@ def main():
         _, loader, _ = get_data_loaders()
         split = "val"
 
-    model = load_trained_model()
+    model = load_trained_model()  # weights come from S3_MODEL_KEY (cached in .cache/)
     n_classes = len(CLASS_NAMES)
     confusion = [[0] * n_classes for _ in range(n_classes)]  # confusion[true][pred]
 
@@ -44,15 +48,18 @@ def main():
         print(f"{CLASS_NAMES[i]:>14}" + "".join(f"{v:>14}" for v in row))
 
     print("\nPer-class metrics:")
+    per_class = {}
     for i, name in enumerate(CLASS_NAMES):
         tp = confusion[i][i]
         fp = sum(confusion[r][i] for r in range(n_classes)) - tp
         fn = sum(confusion[i]) - tp
         precision = tp / (tp + fp) if tp + fp else 0.0
         recall = tp / (tp + fn) if tp + fn else 0.0
+        per_class[name] = {"precision": 100 * precision, "recall": 100 * recall}
         print(f"  {name:>12}: precision {100 * precision:.2f}% | recall {100 * recall:.2f}%")
     print("=" * 50)
 
-
-if __name__ == "__main__":
-    main()
+    storage.save_results(f"eval_{split}", {
+        "split": split, "accuracy": 100 * correct / total, "correct": correct, "total": total,
+        "classes": CLASS_NAMES, "confusion": confusion, "per_class": per_class,
+    })  # -> S3_RESULTS_PREFIX

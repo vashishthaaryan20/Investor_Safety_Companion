@@ -1,0 +1,5 @@
+# pulled from S3 - never commit
+.cache/
+__pycache__/
+*.pyc
+*.pth
