@@ -44,6 +44,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="quick-capture"
             options={{ title: 'Quick Capture', animation: 'slide_from_bottom' }}
+            dangerouslySingular={() => 'quick-capture'}
           />
         </Stack>
       </ScanProvider>

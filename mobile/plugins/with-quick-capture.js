@@ -55,6 +55,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import ${pkg}.R
@@ -75,6 +76,11 @@ class ${TILE_CLASS} : TileService() {
 
   override fun onClick() {
     super.onClick()
+    // SystemUI can replay a click that arrived while the panel was closed; ignore the duplicate.
+    val now = SystemClock.elapsedRealtime()
+    if (now - lastClickAt < CLICK_DEBOUNCE_MS) return
+    lastClickAt = now
+
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(DEEP_LINK)).apply {
       setPackage(packageName)
       addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -102,6 +108,8 @@ class ${TILE_CLASS} : TileService() {
   }
 
   companion object {
+    private const val CLICK_DEBOUNCE_MS = 1500L
+    private var lastClickAt = 0L
     private const val DEEP_LINK = "${scheme}://quick-capture?source=tile&action=gallery"
   }
 }
