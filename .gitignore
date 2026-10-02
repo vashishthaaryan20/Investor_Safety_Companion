@@ -13,6 +13,8 @@ __pycache__/
 dist/
 build/
 *.log
+.cache/
+*.pth
+tree_output.txt
 anweshabackend/uploads/
-phishing_detector/.cache/
 tempCodeRunnerFile.*
