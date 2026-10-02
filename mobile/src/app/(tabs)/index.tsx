@@ -3,11 +3,14 @@ import { useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { HistoryRow } from "@/components/sangyan/history-row";
 import { AppButton, Card, SectionHeader } from "@/components/sangyan/ui";
 import { Palette, Radius } from "@/constants/palette";
-import { getRiskCopy } from "@/constants/risk";
+import { isInconclusive } from "@/constants/risk";
 import { BottomTabInset } from "@/constants/theme";
-import { useScan, type ScanHistoryItem, type ScanMode } from "@/state/scan-store";
+import { useScan, type ScanMode, type ScanRecord } from "@/state/scan-store";
+
+const RECENT_LIMIT = 3;
 
 const HOW_IT_WORKS = [
   { icon: "image-outline", text: "Share a screenshot or paste a message" },
@@ -22,57 +25,20 @@ const SCAM_SIGNS = [
   { icon: "ribbon-outline", title: "Fake approvals", text: "\"SEBI approved scheme\"" },
 ] as const;
 
-function timeAgo(timestamp: number) {
-  const minutes = Math.floor((Date.now() - timestamp) / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const date = new Date(timestamp);
-  return `${date.getHours().toString().padStart(2, "0")}:${date
-    .getMinutes()
-    .toString()
-    .padStart(2, "0")}`;
-}
-
-function RecentCheck({ item, onPress }: { item: ScanHistoryItem; onPress: () => void }) {
-  const risk = getRiskCopy(item.result.risk.level);
-  const inconclusive = item.result.status === "inconclusive";
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      style={({ pressed }) => [styles.recentRow, pressed && { opacity: 0.7 }]}
-    >
-      <View style={[styles.recentDot, { backgroundColor: inconclusive ? Palette.subtle : risk.color }]} />
-      <View style={styles.recentBody}>
-        <Text style={styles.recentPreview} numberOfLines={1}>
-          {item.preview}
-        </Text>
-        <Text style={styles.recentMeta}>
-          {item.mode === "image" ? "Screenshot" : "Message"} · {timeAgo(item.createdAt)}
-        </Text>
-      </View>
-      <Text style={[styles.recentLevel, { color: inconclusive ? Palette.muted : risk.color }]}>
-        {inconclusive ? "Unclear" : risk.label}
-      </Text>
-      <Ionicons name="chevron-forward" size={18} color={Palette.subtle} />
-    </Pressable>
-  );
-}
-
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { history, resetDraft, showResult } = useScan();
+  const recent = history.slice(0, RECENT_LIMIT);
 
   const startScan = (mode: ScanMode) => {
     resetDraft(mode);
     router.push("/scan");
   };
 
-  const openHistory = (item: ScanHistoryItem) => {
-    showResult(item);
-    router.push(item.result.status === "inconclusive" ? "/inconclusive" : "/result");
+  const openRecord = (record: ScanRecord) => {
+    showResult(record);
+    router.push(isInconclusive(record.result) ? "/inconclusive" : "/result");
   };
 
   return (
@@ -128,16 +94,27 @@ export default function HomeScreen() {
       </View>
 
       <View>
-        <SectionHeader
-          title="Recent checks"
-          subtitle={history.length ? "Tap a check to see the full result." : undefined}
-        />
-        {history.length ? (
+        <View style={styles.recentHeader}>
+          <SectionHeader
+            title="Recent checks"
+            subtitle={recent.length ? "Tap a check to see the full result." : undefined}
+          />
+          {history.length > 0 && (
+            <Pressable
+              onPress={() => router.navigate("/history")}
+              hitSlop={8}
+              accessibilityRole="link"
+            >
+              <Text style={styles.seeAll}>See all ({history.length})</Text>
+            </Pressable>
+          )}
+        </View>
+        {recent.length ? (
           <Card style={styles.recentCard}>
-            {history.map((item, index) => (
-              <View key={item.id}>
+            {recent.map((record, index) => (
+              <View key={record.id}>
                 {index > 0 && <View style={styles.divider} />}
-                <RecentCheck item={item} onPress={() => openHistory(item)} />
+                <HistoryRow record={record} onPress={() => openRecord(record)} />
               </View>
             ))}
           </Card>
@@ -145,7 +122,7 @@ export default function HomeScreen() {
           <Card style={styles.emptyCard}>
             <Ionicons name="time-outline" size={28} color={Palette.subtle} />
             <Text style={styles.emptyText}>
-              No checks yet. Your checks from this session will appear here.
+              No checks yet. Your results will be saved on this phone so you can open them again.
             </Text>
           </Card>
         )}
@@ -257,36 +234,19 @@ const styles = StyleSheet.create({
     color: Palette.text,
     fontWeight: "600",
   },
-  recentCard: {
-    paddingVertical: 6,
-  },
-  recentRow: {
+  recentHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
-  recentDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  seeAll: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Palette.brand,
+    paddingTop: 2,
   },
-  recentBody: {
-    flex: 1,
-  },
-  recentPreview: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Palette.ink,
-  },
-  recentMeta: {
-    fontSize: 12,
-    color: Palette.muted,
-    marginTop: 2,
-  },
-  recentLevel: {
-    fontSize: 13,
-    fontWeight: "800",
+  recentCard: {
+    paddingVertical: 4,
   },
   divider: {
     height: 1,

@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, Stack, useRouter } from "expo-router";
 import { useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -14,13 +14,14 @@ import { AppButton, Card, IconBadge, SectionHeader } from "@/components/sangyan/
 import { Palette, Radius } from "@/constants/palette";
 import { getRiskCopy } from "@/constants/risk";
 import { useScan } from "@/state/scan-store";
+import { formatDateTime } from "@/utils/format-date";
 
 const PREVIEW_CHARS = 320;
 
 export default function ResultScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { result, draft, resetDraft } = useScan();
+  const { result, draft, resetDraft, activeRecord, resultSource, deleteScan } = useScan();
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [showFullText, setShowFullText] = useState(false);
 
@@ -50,13 +51,66 @@ export default function ResultScreen() {
   };
 
   const scanAgain = () => {
-    resetDraft(draft.mode);
+    resetDraft(activeRecord?.mode ?? draft.mode);
     router.dismissTo("/scan");
+  };
+
+  const confirmDelete = () => {
+    if (!activeRecord) return;
+    const recordId = activeRecord.id;
+    Alert.alert("Delete this check?", "It will be removed from your history on this phone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          if (resultSource === "history") {
+            router.back();
+          } else {
+            router.dismissTo("/");
+          }
+          deleteScan(recordId);
+        },
+      },
+    ]);
   };
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen
+        options={{
+          title: resultSource === "history" ? "Saved result" : "Your result",
+          headerBackVisible: resultSource === "history",
+          headerRight: activeRecord
+            ? () => (
+                <Pressable
+                  onPress={confirmDelete}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete this check"
+                >
+                  <Ionicons name="trash-outline" size={22} color={Palette.navy} />
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <ScrollView contentContainerStyle={styles.content}>
+        {activeRecord && (
+          <View style={styles.savedRow}>
+            <Ionicons
+              name={resultSource === "history" ? "time-outline" : "bookmark-outline"}
+              size={15}
+              color={Palette.muted}
+            />
+            <Text style={styles.savedText}>
+              {resultSource === "history"
+                ? `Checked ${formatDateTime(activeRecord.createdAt)}`
+                : "Saved to your history on this phone"}
+              {activeRecord.mode === "image" ? " · Screenshot" : " · Message"}
+            </Text>
+          </View>
+        )}
         <View
           style={[styles.hero, { backgroundColor: risk.soft, borderColor: risk.color }]}
           accessible
@@ -229,6 +283,17 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  savedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: -12,
+  },
+  savedText: {
+    fontSize: 13,
+    color: Palette.muted,
+    fontWeight: "600",
   },
   hero: {
     borderRadius: Radius.xl,

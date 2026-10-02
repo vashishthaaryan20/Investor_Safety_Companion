@@ -23,6 +23,8 @@ export interface AnalysisSignal {
 }
 
 export interface AnalysisResult {
+  analysis_id?: string;
+  analyzed_at?: string;
   status: string;
   extracted_text?: string;
   detected_urls: string[];

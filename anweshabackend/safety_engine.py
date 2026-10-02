@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 GUARANTEED_RETURN = re.compile(
@@ -239,6 +241,8 @@ def analyze_content(
         )
 
     return {
+        "analysis_id": str(uuid.uuid4()),
+        "analyzed_at": datetime.now(timezone.utc).isoformat(),
         "status": status,
         "extracted_text": text,
         "detected_urls": urls,
