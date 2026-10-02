@@ -203,7 +203,8 @@ export async function sendScreenshotForAnalysis(
   imageUri: string,
   fileName: string,
   mimeType: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  captureSource = "scan"
 ): Promise<AnalysisResult> {
   const imageFile = new File(imageUri);
   const formData = new FormData();
@@ -218,7 +219,7 @@ export async function sendScreenshotForAnalysis(
 
   return postForAnalysis(
     "/api/v1/analyze",
-    { headers: {}, body: formData },
+    { headers: { "X-Capture-Source": captureSource }, body: formData },
     signal
   );
 }

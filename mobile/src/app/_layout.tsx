@@ -8,6 +8,11 @@ import { ScanProvider } from '@/state/scan-store';
 
 SplashScreen.preventAutoHideAsync();
 
+// Deep links (Quick Settings tile, app shortcuts) open on top of the tabs, so Back leads home.
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
+
 export default function RootLayout() {
   return (
     <ThemeProvider value={DefaultTheme}>
@@ -36,6 +41,10 @@ export default function RootLayout() {
           <Stack.Screen name="scan-error" options={{ headerShown: false }} />
           <Stack.Screen name="learn/[topic]" options={{ title: 'Learn & Protect' }} />
           <Stack.Screen name="emergency" options={{ title: 'Emergency help' }} />
+          <Stack.Screen
+            name="quick-capture"
+            options={{ title: 'Quick Capture', animation: 'slide_from_bottom' }}
+          />
         </Stack>
       </ScanProvider>
     </ThemeProvider>

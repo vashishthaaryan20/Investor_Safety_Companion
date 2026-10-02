@@ -21,6 +21,8 @@ export interface ScanDraft {
   imageName: string;
   imageType: string;
   text: string;
+  /** Where the image came from: scan, quick-capture, quick-capture-tile, quick-capture-shortcut. */
+  captureSource?: string;
 }
 
 export type ResultSource = "scan" | "history";

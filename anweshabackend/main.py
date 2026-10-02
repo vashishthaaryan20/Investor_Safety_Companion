@@ -6,7 +6,7 @@ import sys
 from io import BytesIO
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
@@ -91,11 +91,15 @@ def health_check():
 
 
 @app.post("/api/v1/analyze")
-async def analyze_screenshot(image: UploadFile = File(...)):
+async def analyze_screenshot(
+    image: UploadFile = File(...),
+    capture_source: str | None = Header(default=None, alias="X-Capture-Source"),
+):
     print()
     print("=" * 60)
     print("SANGYAN ANALYSIS REQUEST")
     print("=" * 60)
+    print("Source   :", capture_source or "unknown")
     print("Filename :", image.filename)
     print("Type     :", image.content_type)
 

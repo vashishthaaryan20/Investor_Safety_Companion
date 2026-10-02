@@ -1,8 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppButton, Card } from "@/components/sangyan/ui";
 import { Palette, Radius } from "@/constants/palette";
+import { pickImage as pickImageFrom, type ImageSource } from "@/services/image-picker";
 import { useScan, type ScanMode } from "@/state/scan-store";
 
 const MIN_TEXT_LENGTH = 10;
@@ -74,42 +73,14 @@ export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const { draft, updateDraft } = useScan();
 
-  const pickImage = async (source: "library" | "camera") => {
-    try {
-      if (source === "camera") {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-          Alert.alert(
-            "Camera permission needed",
-            "Allow camera access in Settings, or choose a screenshot from your gallery instead."
-          );
-          return;
-        }
-      }
-
-      const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ["images"],
-        allowsEditing: false,
-        quality: 0.8,
-      };
-      const picked =
-        source === "camera"
-          ? await ImagePicker.launchCameraAsync(options)
-          : await ImagePicker.launchImageLibraryAsync(options);
-
-      if (picked.canceled) {
-        return;
-      }
-
-      const asset = picked.assets[0];
+  const pickImage = async (source: ImageSource) => {
+    const picked = await pickImageFrom(source);
+    if (picked.status === "picked") {
       updateDraft({
-        imageUri: asset.uri,
-        imageName: asset.fileName || "screenshot.jpg",
-        imageType: asset.mimeType || "image/jpeg",
+        imageUri: picked.image.uri,
+        imageName: picked.image.name,
+        imageType: picked.image.type,
       });
-    } catch (error) {
-      console.error("Image selection failed:", error);
-      Alert.alert("Couldn't open image", "Please try again or choose a different screenshot.");
     }
   };
 

@@ -1,6 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HistoryRow } from "@/components/sangyan/history-row";
@@ -50,6 +52,79 @@ const SCAM_SIGNS = [
     topic: "phishing-impersonation",
   },
 ] as const;
+
+const TILE_STEPS = [
+  "Swipe down twice from the top of the screen",
+  "Tap the pencil (Edit) button",
+  "Drag the “Scan for scam” tile into your tiles",
+];
+
+function QuickCaptureCard({ onOpen }: { onOpen: () => void }) {
+  const [showSetup, setShowSetup] = useState(false);
+  const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+  return (
+    <Card style={styles.quickCard}>
+      <View style={styles.quickHeader}>
+        <View style={styles.quickIcon}>
+          <Ionicons name="flash" size={22} color={Palette.brand} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={styles.quickTitle}>Quick Capture</Text>
+          <Text style={styles.quickText}>
+            {Platform.OS === "android"
+              ? "Check a screenshot straight from Quick Settings or by long-pressing the app icon."
+              : "Pick a screenshot and check it in two taps."}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.quickActions}>
+        <AppButton
+          label="Open Quick Capture"
+          icon="flash-outline"
+          variant="secondary"
+          onPress={onOpen}
+          style={styles.flex}
+        />
+      </View>
+      {Platform.OS === "android" && (
+        <>
+          <Pressable
+            onPress={() => setShowSetup((value) => !value)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showSetup }}
+            style={styles.quickToggle}
+          >
+            <Text style={styles.seeAll}>
+              {showSetup ? "Hide setup" : "Add the Quick Settings tile"}
+            </Text>
+            <Ionicons
+              name={showSetup ? "chevron-up" : "chevron-down"}
+              size={16}
+              color={Palette.brand}
+            />
+          </Pressable>
+          {showSetup && (
+            <View style={styles.quickSetup}>
+              {TILE_STEPS.map((step, index) => (
+                <View key={step} style={styles.quickStep}>
+                  <Text style={styles.quickStepNumber}>{index + 1}</Text>
+                  <Text style={styles.quickStepText}>{step}</Text>
+                </View>
+              ))}
+              <Text style={styles.quickNote}>
+                {inExpoGo
+                  ? "The tile and app shortcuts appear only in the installed SANGYAN Shield app, not in Expo Go."
+                  : "You can also long-press the SANGYAN Shield icon and choose “Scan screenshot”."}
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -103,6 +178,8 @@ export default function HomeScreen() {
           onPress={() => startScan("text")}
         />
       </View>
+
+      <QuickCaptureCard onOpen={() => router.push("/quick-capture")} />
 
       <View>
         <SectionHeader title="How it works" />
@@ -334,6 +411,76 @@ const styles = StyleSheet.create({
     color: Palette.ink,
   },
   signText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: Palette.muted,
+  },
+  quickCard: {
+    gap: 14,
+  },
+  quickHeader: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+  },
+  quickIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: Palette.brandSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: Palette.ink,
+  },
+  quickText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Palette.muted,
+    marginTop: 2,
+  },
+  quickActions: {
+    flexDirection: "row",
+  },
+  quickToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+  },
+  quickSetup: {
+    gap: 10,
+    padding: 12,
+    borderRadius: Radius.md,
+    backgroundColor: Palette.background,
+  },
+  quickStep: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+  },
+  quickStepNumber: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    textAlign: "center",
+    lineHeight: 22,
+    fontSize: 12,
+    fontWeight: "800",
+    color: Palette.brand,
+    backgroundColor: Palette.brandSoft,
+    overflow: "hidden",
+  },
+  quickStepText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 21,
+    color: Palette.text,
+  },
+  quickNote: {
     fontSize: 13,
     lineHeight: 19,
     color: Palette.muted,

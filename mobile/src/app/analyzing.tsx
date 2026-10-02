@@ -89,7 +89,8 @@ export default function AnalyzingScreen() {
                 draft.imageUri,
                 draft.imageName,
                 draft.imageType,
-                controller.signal
+                controller.signal,
+                draft.captureSource
               )
             : await sendTextForAnalysis(draft.text.trim(), controller.signal);
 
