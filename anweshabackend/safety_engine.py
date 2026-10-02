@@ -6,24 +6,39 @@ import re
 from typing import Any
 
 GUARANTEED_RETURN = re.compile(
-    r"\b(guaranteed|assured|risk[- ]?free|sure[- ]?shot)\b.{0,40}\b("
-    r"return|profit|income|gain|x\b|times)",
+    r"\b(guaranteed|assured|risk[- ]?free|sure[- ]?shot)\b.{0,40}?\b("
+    r"returns?|profits?|income|gains?|times)\b",
     re.I | re.S,
 )
-MULTIPLIER = re.compile(r"\b(\d+\s*[xX]|[0-9]+\s*times)\b.{0,20}\b(return|profit|money)?", re.I)
+MULTIPLIER = re.compile(
+    r"\b\d+(?:\.\d+)?\s*(?:x|times)\s+(?:your\s+)?(?:returns?|profits?|money|gains?)\b"
+    r"|\bdouble your money\b"
+    r"|\b\d{2,3}\s*%\s*(?:monthly|per month|daily|per day|weekly|per week)\b",
+    re.I,
+)
 URGENCY = re.compile(
-    r"\b(today only|last chance|hurry|limited slots?|only \d+ (minutes?|hours?|seats?)|"
-    r"act now|invest now|before it.?s too late|immediate(ly)?)\b",
+    r"\b(today only|last chance|hurry|limited slots?|only \d+ (?:minutes?|hours?|seats?|slots?)"
+    r"(?: left| remaining)?|act now|invest now|before it.?s too late|immediately)\b",
     re.I,
 )
-INSIDER = re.compile(r"\b(insider|tip group|secret tip|pump|guaranteed profit)\b", re.I)
-SEBI_MISUSE = re.compile(r"\b(sebi[- ]approved|sebi certified|nsdl approved|government approved scheme)\b", re.I)
-OTP_PRESSURE = re.compile(r"\b(otp|cvv|pin|password|upi pin|netbanking)\b", re.I)
+INSIDER = re.compile(r"\b(insider tips?|insider|tip group|secret tips?|pump)\b", re.I)
+SEBI_MISUSE = re.compile(
+    r"\b(sebi[- ]approved|sebi[- ]certified|sebi[- ]registered scheme|nsdl[- ]approved|"
+    r"government[- ]approved scheme)\b",
+    re.I,
+)
+OTP_PRESSURE = re.compile(r"\b(otp|cvv|upi pin|pin|password|netbanking)\b", re.I)
 PAYMENT_PUSH = re.compile(
-    r"\b(send (money|rs|₹)|pay (now|immediately)|upi|gpay|phonepe|paytm|crypto wallet|usdt)\b",
+    r"\b(send (?:money|rs\.?|₹)|pay (?:now|immediately)|upi|gpay|phonepe|paytm|crypto wallet|usdt)\b",
     re.I,
 )
-SOCIAL_TIP = re.compile(r"\b(telegram|whatsapp|instagram|youtube).{0,30}\b(tip|group|channel|signal)\b", re.I)
+SOCIAL_TIP = re.compile(
+    r"\b(telegram|whatsapp|instagram|youtube)\b.{0,30}?\b(tips?|group|channel|signals?)\b",
+    re.I | re.S,
+)
+
+# Below this much readable text, a "no warning signs" verdict would be misleading.
+MIN_READABLE_CHARS = 15
 
 VERIFICATION_STEPS = [
     "Do not send money, share OTPs, or click unknown payment links based on this message.",
@@ -34,21 +49,40 @@ VERIFICATION_STEPS = [
 ]
 
 
-def _add(signals: list[dict], category: str, severity: str, title: str, description: str) -> None:
+def _matches(*patterns: re.Pattern, text: str, limit: int = 3) -> list[str]:
+    found: list[str] = []
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            phrase = " ".join(match.group(0).split())
+            if phrase and not any(phrase.lower() in f.lower() for f in found):
+                found.append(phrase)
+            if len(found) >= limit:
+                return found
+    return found
+
+
+def _add(
+    signals: list[dict],
+    category: str,
+    severity: str,
+    title: str,
+    description: str,
+    evidence: list[str] | None = None,
+) -> None:
     signals.append(
         {
             "category": category,
             "severity": severity,
             "title": title,
             "description": description,
+            "evidence": evidence or [],
         }
     )
 
 
 def _score(signals: list[dict]) -> tuple[str, int]:
     weights = {"high": 3, "medium": 2, "low": 1}
-    total = sum(weights.get(s["severity"], 1) for s in signals)
-    total = min(10, total)
+    total = min(10, sum(weights.get(s["severity"], 1) for s in signals))
     if not signals:
         return "LOW_ATTENTION", 1
     if total >= 7:
@@ -75,75 +109,87 @@ def analyze_content(
         if e.get("type") in {"url", "domain"} and (e.get("normalized") or e.get("value"))
     ]
 
-    if GUARANTEED_RETURN.search(text) or MULTIPLIER.search(text):
+    evidence = _matches(GUARANTEED_RETURN, MULTIPLIER, text=text)
+    if evidence:
         _add(
             signals,
             "content",
             "high",
-            "Guaranteed or extreme-return claim",
-            "The message promises unusually high, guaranteed, or multiplied returns. "
-            "Regulated market investments do not guarantee profits.",
+            "Promises guaranteed or huge returns",
+            "The message promises guaranteed, multiplied, or very high returns. "
+            "Real investments can lose money, so no one can honestly guarantee profits.",
+            evidence,
         )
 
-    if URGENCY.search(text):
+    evidence = _matches(URGENCY, text=text)
+    if evidence:
         _add(
             signals,
             "behavior",
             "medium",
-            "Urgency or scarcity pressure",
-            "The content pushes immediate action, limited slots, or a short deadline. "
-            "Pressure to act fast is a common scam pattern.",
+            "Pushes you to act fast",
+            "It creates pressure with deadlines or limited slots. "
+            "Scammers rush people so they don't stop to check.",
+            evidence,
         )
 
-    if INSIDER.search(text) or SOCIAL_TIP.search(text):
+    evidence = _matches(INSIDER, SOCIAL_TIP, text=text)
+    if evidence:
         _add(
             signals,
             "source",
             "high",
-            "Unverified tip or insider-style promotion",
-            "Investment tips from chat groups or 'insider' claims are a frequent fraud vector. "
-            "They are not a substitute for independent verification.",
+            "Secret tip or chat-group promotion",
+            "'Insider tips' and stock tips from WhatsApp or Telegram groups are a common way "
+            "people get cheated. Genuine advisers don't sell secret tips in chat groups.",
+            evidence,
         )
 
-    if SEBI_MISUSE.search(text):
+    evidence = _matches(SEBI_MISUSE, text=text)
+    if evidence:
         _add(
             signals,
             "source",
             "high",
-            "Possible misuse of a regulator's name",
-            "SEBI, NSDL, or 'government approved' wording is often forged in scam messages. "
-            "Check the claim on official websites only.",
+            "Uses SEBI or government name to look trustworthy",
+            "SEBI does not approve schemes that promise returns. Scammers often fake "
+            "'SEBI approved' or 'government approved' labels.",
+            evidence,
         )
 
-    if OTP_PRESSURE.search(text):
-        _add(
-            signals,
-            "behavior",
-            "high",
-            "Request for OTP, PIN, or password",
-            "No genuine broker, SEBI, or bank officer needs your OTP or UPI PIN. "
-            "Sharing these can empty an account immediately.",
-        )
-
-    if PAYMENT_PUSH.search(text):
-        _add(
-            signals,
-            "behavior",
-            "medium",
-            "Payment or wallet transfer prompt",
-            "The message asks you to send money or use UPI/crypto wallets. "
-            "Pause and verify the recipient independently before paying.",
-        )
-
-    entity_types = {e.get("type") for e in entities}
-    if "secret_request" in entity_types or "card_number" in entity_types:
+    evidence = _matches(OTP_PRESSURE, text=text)
+    if evidence:
         _add(
             signals,
             "privacy",
             "high",
-            "Sensitive credential or card details detected",
-            "The screenshot appears to mention OTPs, cards, or other secrets. "
-            "Do not share these with anyone who contacted you first.",
+            "Asks for OTP, PIN, or password",
+            "No real bank, broker, or SEBI officer will ever ask for your OTP or UPI PIN. "
+            "Sharing it can let someone empty your account.",
+            evidence,
+        )
+
+    evidence = _matches(PAYMENT_PUSH, text=text)
+    if evidence:
+        _add(
+            signals,
+            "behavior",
+            "medium",
+            "Asks you to send money",
+            "It asks you to pay through UPI, a wallet, or crypto. "
+            "Money sent this way is very hard to get back.",
+            evidence,
+        )
+
+    entity_types = {e.get("type") for e in entities}
+    if "secret_request" in entity_types and not any(s["category"] == "privacy" for s in signals):
+        _add(
+            signals,
+            "privacy",
+            "high",
+            "Asks for sensitive details",
+            "The screenshot seems to ask for secret details like card numbers or codes. "
+            "Never share these with someone who contacted you first.",
         )
 
     if urls:
@@ -151,9 +197,10 @@ def analyze_content(
             signals,
             "source",
             "medium",
-            "Links or websites found",
-            "URLs were extracted from the content. Open only sites you typed yourself, "
-            "and be wary of lookalike domains.",
+            "Contains links",
+            "Links in such messages can lead to fake websites that look real. "
+            "Don't open them. Type official website addresses yourself.",
+            urls[:3],
         )
 
     if phishing_label == "phishing" and (phishing_confidence or 0) >= 55:
@@ -161,41 +208,38 @@ def analyze_content(
             signals,
             "visual",
             "high",
-            "Screenshot resembles known phishing layouts",
-            f"The image classifier flagged this screenshot as phishing-like "
-            f"({phishing_confidence:.0f}% model confidence). Treat it as untrusted until verified.",
-        )
-
-    if not text.strip() and not signals:
-        _add(
-            signals,
-            "content",
-            "low",
-            "Little readable text",
-            "OCR did not recover enough text to judge the claim. Try a clearer screenshot, "
-            "or paste the message as text.",
+            "Looks like a known fake page",
+            "Our image check found this screenshot looks similar to known phishing pages.",
+            [f"{phishing_confidence:.0f}% match with phishing layouts"],
         )
 
     level, score = _score(signals)
+    readable = len(text.strip()) >= MIN_READABLE_CHARS
+    status = "success" if signals or readable else "inconclusive"
 
-    if level == "HIGH_ATTENTION":
+    if status == "inconclusive":
         explanation = (
-            "This content contains several investor-safety warning signs. "
-            "Pause, do not send money, and verify through official channels."
+            "We could not read enough text to check this properly. "
+            "Try a clearer screenshot, or paste the message as text."
+        )
+    elif level == "HIGH_ATTENTION":
+        explanation = (
+            "This message shows several signs that are common in investment scams. "
+            "Do not send money or share any details until you verify it through official sources."
         )
     elif level in {"ELEVATED", "MODERATE"}:
         explanation = (
-            "Some warning indicators are present. Review the signs below and verify "
-            "the source before taking any financial action."
+            "We found some warning signs. Read them below and check the source carefully "
+            "before you take any action."
         )
     else:
         explanation = (
-            "Few classic scam markers were found, but this is not a safety certificate. "
-            "Always verify independently. SANGYAN never gives buy or sell advice."
+            "We did not find common scam signs. That does not mean it is safe. "
+            "Always verify before you invest or pay."
         )
 
     return {
-        "status": "success",
+        "status": status,
         "extracted_text": text,
         "detected_urls": urls,
         "analysis_mode": "ocr_and_rules",
