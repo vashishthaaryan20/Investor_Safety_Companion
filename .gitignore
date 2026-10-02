@@ -1,4 +1,5 @@
 .env
+.env/
 .env.*
 !.env.example
 node_modules/
@@ -7,11 +8,11 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+.DS_Store
 .expo/
 dist/
 build/
 *.log
-.DS_Store
 anweshabackend/uploads/
 phishing_detector/.cache/
 tempCodeRunnerFile.*
