@@ -2,7 +2,7 @@ import { fetch } from "expo/fetch";
 import { File } from "expo-file-system";
 import * as FileSystem from "expo-file-system/legacy";
 // Keep this address aligned with the laptop running FastAPI.
-const API_BASE_URL = "http://192.168.29.197:8000";
+const API_BASE_URL = "http://10.30.54.3:8000";
 
 
 import {
