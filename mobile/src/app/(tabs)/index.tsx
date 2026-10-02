@@ -18,6 +18,7 @@ import {
 } from "@/components/sangyan/ui";
 import { Colors, Layout, Radius, Space } from "@/constants/design";
 import { isInconclusive } from "@/constants/risk";
+import { requestAddScreenTile } from "@/services/screen-context";
 import { useScan, type ScanMode, type ScanRecord } from "@/state/scan-store";
 
 const RECENT_LIMIT = 3;
@@ -122,6 +123,89 @@ function QuickCaptureCard({ onOpen }: { onOpen: () => void }) {
   );
 }
 
+const SCREEN_TILE_STEPS = [
+  "Swipe down twice from the top of the screen",
+  "Tap the pencil (Edit) button",
+  "Drag the “Analyze screen” tile into your tiles",
+];
+
+function OtherAppsCard() {
+  const [showSteps, setShowSteps] = useState(false);
+  const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+  const packageName = Constants.expoConfig?.android?.package;
+
+  const addTile = async () => {
+    const prompted = packageName ? await requestAddScreenTile(packageName) : false;
+    if (!prompted) setShowSteps(true);
+  };
+
+  return (
+    <Card style={styles.cardGap}>
+      <View style={styles.rowTop}>
+        <IconBadge icon="layers" color={Colors.primary} background={Colors.infoSoft} size={44} />
+        <View style={styles.flex}>
+          <AppText variant="subheading" tone="ink" accessibilityRole="header">
+            Check while using other apps
+          </AppText>
+          <AppText variant="caption" tone="muted">
+            Seeing a tip in WhatsApp, Telegram, or a browser? Check it without leaving that app.
+          </AppText>
+        </View>
+      </View>
+      <View style={styles.setup}>
+        <View style={styles.rowTop}>
+          <Ionicons name="scan-outline" size={20} color={Colors.secondary} />
+          <AppText style={styles.flex}>
+            <AppText variant="bodyStrong" tone="ink">
+              Analyze screen tile.{" "}
+            </AppText>
+            Tap it in Quick Settings. Android asks your permission, then we take one picture of
+            that screen. Nothing is sent until you confirm.
+          </AppText>
+        </View>
+        <View style={styles.rowTop}>
+          <Ionicons name="share-social-outline" size={20} color={Colors.secondary} />
+          <AppText style={styles.flex}>
+            <AppText variant="bodyStrong" tone="ink">
+              Share.{" "}
+            </AppText>
+            In any app, tap Share on a message or image and choose “Check with SANGYAN Shield”.
+          </AppText>
+        </View>
+      </View>
+      {inExpoGo ? (
+        <AppText variant="caption" tone="muted">
+          These work only in the installed SANGYAN Shield app, not in Expo Go.
+        </AppText>
+      ) : (
+        <>
+          <AppButton label="Add the Analyze screen tile" icon="add-circle-outline" variant="secondary" onPress={addTile} />
+          <TextLink
+            label={showSteps ? "Hide steps" : "Add the tile yourself"}
+            trailingIcon={showSteps ? "chevron-up" : "chevron-down"}
+            accessibilityState={{ expanded: showSteps }}
+            onPress={() => setShowSteps((value) => !value)}
+          />
+          {showSteps && (
+            <View style={styles.setup}>
+              {SCREEN_TILE_STEPS.map((step, index) => (
+                <View key={step} style={styles.rowTop}>
+                  <View style={styles.stepNumber}>
+                    <AppText variant="caption" tone="brand" style={styles.bold}>
+                      {index + 1}
+                    </AppText>
+                  </View>
+                  <AppText style={styles.flex}>{step}</AppText>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { width, fontScale } = useWindowDimensions();
@@ -179,6 +263,8 @@ export default function HomeScreen() {
       </View>
 
       <QuickCaptureCard onOpen={() => router.push("/quick-capture")} />
+
+      {Platform.OS === "android" && <OtherAppsCard />}
 
       <View>
         <SectionHeader title="How it works" />

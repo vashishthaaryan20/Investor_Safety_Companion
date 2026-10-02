@@ -2,6 +2,8 @@ import { fetch } from "expo/fetch";
 import { File } from "expo-file-system";
 import * as FileSystem from "expo-file-system/legacy";
 
+import { DEFAULT_FOCUS, type AnalysisFocus } from "@/constants/analysis-focus";
+
 import {
   createImageJSON,
   storeImageJSON,
@@ -23,6 +25,16 @@ export interface AnalysisSignal {
   evidence?: string[];
 }
 
+/** Answer to the question picked before analysis; detected and uncertain points are kept apart. */
+export interface FocusReport {
+  focus: AnalysisFocus;
+  question: string;
+  answer: string;
+  detected: string[];
+  uncertain: string[];
+  next_steps: string[];
+}
+
 export interface AnalysisResult {
   analysis_id?: string;
   analyzed_at?: string;
@@ -37,6 +49,7 @@ export interface AnalysisResult {
   signals: AnalysisSignal[];
   explanation: string;
   verification: string[];
+  focus_report?: FocusReport;
 }
 
 export type ApiErrorKind =
@@ -204,7 +217,8 @@ export async function sendScreenshotForAnalysis(
   fileName: string,
   mimeType: string,
   signal?: AbortSignal,
-  captureSource = "scan"
+  captureSource = "scan",
+  focus: AnalysisFocus = DEFAULT_FOCUS
 ): Promise<AnalysisResult> {
   const imageFile = new File(imageUri);
   const formData = new FormData();
@@ -219,20 +233,24 @@ export async function sendScreenshotForAnalysis(
 
   return postForAnalysis(
     "/api/v1/analyze",
-    { headers: { "X-Capture-Source": captureSource }, body: formData },
+    {
+      headers: { "X-Capture-Source": captureSource, "X-Analysis-Focus": focus },
+      body: formData,
+    },
     signal
   );
 }
 
 export async function sendTextForAnalysis(
   text: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  focus: AnalysisFocus = DEFAULT_FOCUS
 ): Promise<AnalysisResult> {
   return postForAnalysis(
     "/api/v1/analyze-text",
     {
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, focus }),
     },
     signal
   );

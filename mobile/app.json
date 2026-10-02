@@ -43,6 +43,7 @@
         }
       ],
       "./plugins/with-quick-capture",
+      "./plugins/with-screen-context",
       "./plugins/with-android-build-memory",
       "./plugins/with-font-scale-config"
     ],

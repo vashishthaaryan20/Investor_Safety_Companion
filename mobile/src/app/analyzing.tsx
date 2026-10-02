@@ -99,9 +99,10 @@ export default function AnalyzingScreen() {
                 draft.imageName,
                 draft.imageType,
                 controller.signal,
-                draft.captureSource
+                draft.captureSource,
+                draft.analysisFocus
               )
-            : await sendTextForAnalysis(draft.text.trim(), controller.signal);
+            : await sendTextForAnalysis(draft.text.trim(), controller.signal, draft.analysisFocus);
 
         const remaining = MIN_VISIBLE_MS - (Date.now() - startedAt);
         if (remaining > 0) {

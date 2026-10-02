@@ -10,9 +10,9 @@ import {
 } from "@/constants/guidance";
 import { getLearnTopic, type LearnTopicId } from "@/constants/learn-content";
 import { getCategoryIcon, getSeverityCopy } from "@/constants/risk";
-import type { AnalysisSignal } from "@/services/api";
+import type { AnalysisSignal, FocusReport } from "@/services/api";
 
-import { AppText, BulletList, Card, TextLink } from "./ui";
+import { AppText, BulletList, Card, TextLink, type IconName } from "./ui";
 
 export function RiskMeter({ score, color }: { score: number; color: string }) {
   const filled = Math.max(1, Math.min(10, Math.round(score)));
@@ -150,6 +150,71 @@ export function SignalCard({
   );
 }
 
+function FocusPointList({
+  title,
+  items,
+  icon,
+  color,
+}: {
+  title: string;
+  items: string[];
+  icon: IconName;
+  color: string;
+}) {
+  return (
+    <View style={styles.block}>
+      <AppText variant="overline" tone="muted">
+        {title}
+      </AppText>
+      {items.map((item) => (
+        <View key={item} style={styles.focusPoint}>
+          <Ionicons name={icon} size={18} color={color} style={styles.focusPointIcon} />
+          <AppText style={styles.flex}>{item}</AppText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Answers the question picked before analysis, keeping found evidence apart from guesses. */
+export function FocusReportCard({ report }: { report: FocusReport }) {
+  return (
+    <Card style={styles.focusCard}>
+      <View style={styles.block}>
+        <AppText variant="overline" tone="brand">
+          You asked
+        </AppText>
+        <AppText variant="heading">{report.question}</AppText>
+      </View>
+      <AppText>{report.answer}</AppText>
+      {report.detected.length > 0 && (
+        <FocusPointList
+          title="What we found in it"
+          items={report.detected}
+          icon="search-outline"
+          color={Colors.secondary}
+        />
+      )}
+      {report.uncertain.length > 0 && (
+        <FocusPointList
+          title="What we can't confirm"
+          items={report.uncertain}
+          icon="help-circle-outline"
+          color={Colors.caution}
+        />
+      )}
+      {report.next_steps.length > 0 && (
+        <View style={styles.block}>
+          <AppText variant="overline" tone="muted">
+            Check these yourself
+          </AppText>
+          <BulletList items={report.next_steps} />
+        </View>
+      )}
+    </Card>
+  );
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -277,6 +342,19 @@ const styles = StyleSheet.create({
   },
   block: {
     gap: Space.xs + 2,
+  },
+  focusCard: {
+    gap: Space.md,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.secondary,
+  },
+  focusPoint: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Space.sm,
+  },
+  focusPointIcon: {
+    marginTop: 2,
   },
   evidenceRow: {
     flexDirection: "row",

@@ -49,6 +49,7 @@ Or OCR only:
     )
 """
 
+import os
 import re
 import time
 from functools import lru_cache
@@ -69,6 +70,10 @@ MIN_CONF = 0.30
 MIN_CROP = 16
 TARGET_HEIGHT = 160
 VERBOSE = True
+
+# Recognised words can contain OTPs, account numbers, or private chats, so they are
+# only printed when SANGYAN_OCR_DEBUG=1 is set explicitly.
+LOG_OCR_TEXT = os.environ.get("SANGYAN_OCR_DEBUG") == "1"
 
 # Number of characters around an entity to retain as context.
 CONTEXT_CHARS = 100
@@ -564,16 +569,18 @@ def extract_text(
 
     if return_confidence:
 
-        log("OCR results with confidence:")
+        if LOG_OCR_TEXT:
 
-        for token in ocr_data["tokens"]:
+            log("OCR results with confidence:")
 
-            print(
-                f"  {token['text']:<35} "
-                f"confidence="
-                f"{token['confidence']:.4f}",
-                flush=True
-            )
+            for token in ocr_data["tokens"]:
+
+                print(
+                    f"  {token['text']:<35} "
+                    f"confidence="
+                    f"{token['confidence']:.4f}",
+                    flush=True
+                )
 
         return ocr_data
 

@@ -6,6 +6,7 @@ import { AccessibilityInfo, BackHandler, StyleSheet, Text, View } from "react-na
 import { EmergencyBanner, InlineAlert } from "@/components/sangyan/feedback";
 import {
   Checklist,
+  FocusReportCard,
   HighlightedText,
   RiskMeter,
   SignalCard,
@@ -83,6 +84,9 @@ export default function ResultScreen() {
     .map((id) => getLearnTopic(id))
     .filter((topic) => topic !== undefined);
   const isUrgent = URGENT_LEVELS.has(result.risk.level);
+  // The default "investment" answer is already the hero and signal list below.
+  const focusReport =
+    result.focus_report && result.focus_report.focus !== "investment" ? result.focus_report : null;
 
   const openTopic = (topic: LearnTopicId) => {
     router.push({ pathname: "/learn/[topic]", params: { topic } });
@@ -219,6 +223,8 @@ export default function ResultScreen() {
 
         {isUrgent && <EmergencyBanner onPress={openEmergency} />}
       </View>
+
+      {focusReport && <FocusReportCard report={focusReport} />}
 
       <View>
         <SectionHeader

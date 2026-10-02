@@ -23,6 +23,7 @@ sys.path = [str(SRC_DIR), str(BACKEND_DIR)] + [
 
 from phishing_detector.ocr import analyze_image, extract_entities  # noqa: E402
 from safety_engine import analyze_content  # noqa: E402
+from focus import build_focus_report, normalize_focus  # noqa: E402
 
 UPLOAD_DIR = BACKEND_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -48,6 +49,10 @@ class ImageJsonPayload(BaseModel):
 
 class TextPayload(BaseModel):
     text: str = Field(..., min_length=1)
+    focus: str | None = Field(
+        default=None,
+        description="Question the user picked: investment, links, explain, or verify",
+    )
 
 
 def _load_pil(image_bytes: bytes) -> Image.Image:
@@ -94,13 +99,15 @@ def health_check():
 async def analyze_screenshot(
     image: UploadFile = File(...),
     capture_source: str | None = Header(default=None, alias="X-Capture-Source"),
+    analysis_focus: str | None = Header(default=None, alias="X-Analysis-Focus"),
 ):
+    focus = normalize_focus(analysis_focus)
     print()
     print("=" * 60)
     print("SANGYAN ANALYSIS REQUEST")
     print("=" * 60)
     print("Source   :", capture_source or "unknown")
-    print("Filename :", image.filename)
+    print("Focus    :", focus)
     print("Type     :", image.content_type)
 
     image_bytes = await image.read()
@@ -109,8 +116,10 @@ async def analyze_screenshot(
 
     pil_image = _load_pil(image_bytes)
     ocr = analyze_image(pil_image)
-    result = _build_result(ocr.get("text") or "", ocr.get("entities") or [], pil_image)
+    text = ocr.get("text") or ""
+    result = _build_result(text, ocr.get("entities") or [], pil_image)
     result["analysis_mode"] = "screenshot_ocr"
+    result["focus_report"] = build_focus_report(focus, result, text)
 
     print("Risk:", result["risk"])
     print("=" * 60)
@@ -121,6 +130,7 @@ async def analyze_screenshot(
 def analyze_pasted_text(payload: TextPayload):
     result = analyze_content(payload.text, entities=extract_entities(payload.text))
     result["analysis_mode"] = "pasted_text"
+    result["focus_report"] = build_focus_report(normalize_focus(payload.focus), result, payload.text)
     return result
 
 

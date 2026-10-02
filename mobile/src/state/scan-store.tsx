@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
+import type { AnalysisFocus } from "@/constants/analysis-focus";
 import type { AnalysisResult, ApiError } from "@/services/api";
+import { deleteCapture, purgeStaleCaptures } from "@/services/screen-context";
 import {
   DEFAULT_SETTINGS,
   MAX_HISTORY,
@@ -21,8 +23,10 @@ export interface ScanDraft {
   imageName: string;
   imageType: string;
   text: string;
-  /** Where the image came from: scan, quick-capture, quick-capture-tile, quick-capture-shortcut. */
+  /** Where the content came from: scan, quick-capture(-tile|-shortcut), screen-context-tile, screen-context-share. */
   captureSource?: string;
+  /** Question picked on the screen-context screen; the backend answers it alongside the usual check. */
+  analysisFocus?: AnalysisFocus;
 }
 
 export type ResultSource = "scan" | "history";
@@ -77,6 +81,10 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<HistorySettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
+    purgeStaleCaptures();
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
     Promise.all([loadHistory(), loadSettings()]).then(([stored, storedSettings]) => {
       if (!mounted) return;
@@ -105,7 +113,10 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const store: ScanStore = {
     draft,
     updateDraft: (changes) => setDraft((current) => ({ ...current, ...changes })),
-    resetDraft: (mode = "image") => setDraft({ ...EMPTY_DRAFT, mode }),
+    resetDraft: (mode = "image") => {
+      deleteCapture(draft.imageUri);
+      setDraft({ ...EMPTY_DRAFT, mode });
+    },
     result,
     error,
     activeRecord,
@@ -114,6 +125,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     historyLoaded,
     settings,
     completeScan: (next) => {
+      // A failed check keeps the screen capture so "Try again" can resend it.
+      deleteCapture(draft.imageUri);
       setResult(next);
       setError(null);
       setResultSource("scan");
