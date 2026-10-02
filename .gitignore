@@ -11,4 +11,6 @@ __pycache__/
 dist/
 build/
 *.log
+.DS_Store
 anweshabackend/uploads/
+phishing_detector/.cache/

@@ -18,18 +18,18 @@ load_dotenv(SRC_DIR / ".env")
 #  S3 LOCATIONS  -  FILL THESE IN  (anything still starting with "<" counts as "not set")
 # =====================================================================================
 # TODO(S3): bucket name, e.g. "my-fraud-detection-bucket"
-S3_BUCKET = os.getenv("S3_BUCKET", "<YOUR-BUCKET-NAME>")
+S3_BUCKET = os.getenv("S3_BUCKET", "sangayan")
 
 # TODO(S3): object key of the trained weights, e.g. "phishing-detector/models/model.pth"
-S3_MODEL_KEY = os.getenv("S3_MODEL_KEY", "<PATH/TO/models/model.pth>")
+S3_MODEL_KEY = os.getenv("S3_MODEL_KEY", "models/phishing_detection/model.pth")
 
 # TODO(S3): prefix of the dataset folder that directly contains train/ val/ test/
 #           e.g. "phishing-detector/data/Phishing dataset/image/"
-S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "<PATH/TO/dataset/image/>")
+S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/image/")
 
 # TODO(S3): prefix where evaluation / training results (json) get uploaded,
 #           e.g. "phishing-detector/results/"
-S3_RESULTS_PREFIX = os.getenv("S3_RESULTS_PREFIX", "<PATH/TO/results/>")
+S3_RESULTS_PREFIX = os.getenv("S3_RESULTS_PREFIX", "results/")
 # =====================================================================================
 
 # Local cache - everything pulled from S3 lands here. It is git-ignored.
