@@ -322,13 +322,33 @@ export default function HomeScreen() {
                 /_/g,
                 " "
               )}
+              
             </Text>
 
           </View>
+          {/* OCR EXTRACTED TEXT */}
+          <View style={styles.ocrCard}>
+            <View style={styles.ocrHeader}>
+              <Text style={styles.ocrLabel}>
+                EXTRACTED SCREENSHOT TEXT
+              </Text>
+              <Text style={styles.ocrStatus}>
+                OCR COMPLETE
+              </Text>
+            </View>
 
+            {analysisResult.extracted_text?.trim() ? (
+              <Text selectable style={styles.extractedText}>
+                {analysisResult.extracted_text}
+              </Text>
+            ) : (
+              <Text style={styles.explanation}>
+                No readable text was detected in this screenshot. Try uploading a clearer image.
+              </Text>
+            )}
+          </View>
 
           {/* EXPLANATION */}
-
           <Text style={styles.sectionTitle}>
             Explanation
           </Text>
@@ -336,7 +356,6 @@ export default function HomeScreen() {
           <Text style={styles.explanation}>
             {analysisResult.explanation}
           </Text>
-
 
           {/* DETECTED SIGNALS */}
 
@@ -607,6 +626,63 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 35,
     lineHeight: 19,
+  },
+  
+  ocrCard: {
+    width: "100%",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#DCE3EA",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+  },
+
+  ocrHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: 14,
+  },
+
+  ocrLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#64748B",
+    letterSpacing: 1,
+  },
+
+  ocrStatus: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#047857",
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+
+  extractedText: {
+    fontSize: 14,
+    color: "#1F2937",
+    lineHeight: 23,
+    textAlign: "left",
+  },
+
+  copyButton: {
+    marginTop: 16,
+    backgroundColor: "#111827",
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 9,
+    alignItems: "center",
+  },
+
+  copyButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
   },
 
 });

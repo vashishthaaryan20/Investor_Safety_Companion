@@ -3,11 +3,14 @@
 !.env.example
 node_modules/
 venv/
+/venv
 .venv/
-__pycache__/
 *.pyc
 .expo/
 dist/
 build/
 *.log
-.DS_Store
+.cache/
+__pycache__/
+*.pth
+tree_output.txt
