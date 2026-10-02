@@ -31,6 +31,10 @@ const SAMPLE_MESSAGES = [
     text: "Dear investor, you are selected for a pre-IPO allotment. Pay ₹10,000 on UPI to confirm your seat and share the OTP you receive. Limited slots, hurry!",
   },
   {
+    label: "Fake trading app",
+    text: "Congratulations! Your profit on our VIP trading account is ₹2,40,000. Pay 10% withdrawal tax to withdraw today. Download our trading app from this link: bit.ly/vip-trade",
+  },
+  {
     label: "Normal message",
     text: "Reminder: your mutual fund statement for September is now available in your registered email. No action is needed.",
   },

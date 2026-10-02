@@ -11,12 +11,15 @@ import {
   SignalCard,
 } from "@/components/sangyan/result-parts";
 import { AppButton, Card, IconBadge, SectionHeader } from "@/components/sangyan/ui";
+import { buildReasonSentence, buildSafetyPlan, getRelatedTopics } from "@/constants/guidance";
+import { getLearnTopic, type LearnTopicId } from "@/constants/learn-content";
 import { Palette, Radius } from "@/constants/palette";
 import { getRiskCopy } from "@/constants/risk";
 import { useScan } from "@/state/scan-store";
 import { formatDateTime } from "@/utils/format-date";
 
 const PREVIEW_CHARS = 320;
+const URGENT_LEVELS = new Set(["HIGH_ATTENTION", "ELEVATED"]);
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -37,6 +40,18 @@ export default function ResultScreen() {
   const evidence = result.signals.flatMap((signal) => signal.evidence ?? []);
   const fromImage = result.analysis_mode === "screenshot_ocr";
   const signalCount = result.signals.length;
+  const reasonSentence = buildReasonSentence(result.signals);
+  const safetyPlan = buildSafetyPlan(result.signals, result.verification);
+  const relatedTopics = getRelatedTopics(result.signals)
+    .map((id) => getLearnTopic(id))
+    .filter((topic) => topic !== undefined);
+  const isUrgent = URGENT_LEVELS.has(result.risk.level);
+
+  const openTopic = (topic: LearnTopicId) => {
+    router.push({ pathname: "/learn/[topic]", params: { topic } });
+  };
+
+  const openEmergency = () => router.push("/emergency");
 
   const toggleStep = (index: number) => {
     setChecked((current) => {
@@ -133,23 +148,52 @@ export default function ResultScreen() {
             <Ionicons name="hand-left-outline" size={20} color={risk.color} />
             <Text style={[styles.adviceText, { color: risk.color }]}>{risk.advice}</Text>
           </View>
+          {!!reasonSentence && (
+            <View style={styles.reasonBox}>
+              <Text style={styles.reasonLabel}>Why this rating</Text>
+              <Text style={styles.reasonText}>
+                We rated this <Text style={styles.reasonStrong}>“{risk.label}”</Text> because it{" "}
+                {reasonSentence}.
+              </Text>
+            </View>
+          )}
           <Text style={styles.explanation}>{result.explanation}</Text>
         </View>
+
+        {isUrgent && (
+          <Pressable
+            onPress={openEmergency}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.urgentStrip, pressed && { opacity: 0.85 }]}
+          >
+            <Ionicons name="medkit-outline" size={22} color={Palette.danger} />
+            <View style={styles.flex}>
+              <Text style={styles.urgentTitle}>Already paid or shared your OTP?</Text>
+              <Text style={styles.urgentText}>See what to do right now</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Palette.danger} />
+          </Pressable>
+        )}
 
         <View>
           <SectionHeader
             icon="flag-outline"
-            title="Warning signs we found"
+            title="Why this is risky"
             subtitle={
               signalCount
-                ? `${signalCount} warning sign${signalCount > 1 ? "s" : ""} in this ${fromImage ? "screenshot" : "message"}.`
+                ? `${signalCount} warning sign${signalCount > 1 ? "s" : ""} in this ${fromImage ? "screenshot" : "message"}. Each card shows what we found and what to do.`
                 : undefined
             }
           />
           {signalCount ? (
             <View style={styles.signals}>
               {result.signals.map((signal) => (
-                <SignalCard key={signal.title} signal={signal} />
+                <SignalCard
+                  key={signal.id ?? signal.title}
+                  signal={signal}
+                  sourceLabel={fromImage ? "screenshot" : "message"}
+                  onLearnMore={openTopic}
+                />
               ))}
             </View>
           ) : (
@@ -167,7 +211,7 @@ export default function ResultScreen() {
           <View>
             <SectionHeader
               icon="document-text-outline"
-              title="Why we flagged this"
+              title="Where we found it"
               subtitle={
                 evidence.length
                   ? "The highlighted words are what triggered the warnings."
@@ -205,33 +249,36 @@ export default function ResultScreen() {
         <View>
           <SectionHeader
             icon="checkbox-outline"
-            title="Before you do anything"
-            subtitle="Tick each step as you go."
+            title="What to do now"
+            subtitle={
+              signalCount
+                ? "Your safety plan for this message, most important first. Tick each step as you go."
+                : "Tick each step as you go."
+            }
           />
           <Card style={styles.checklistCard}>
             <View style={styles.progressRow}>
               <Text style={styles.progressText}>
-                {checked.size} of {result.verification.length} done
+                {checked.size} of {safetyPlan.length} done
               </Text>
               <View style={styles.progressTrack}>
                 <View
                   style={[
                     styles.progressFill,
-                    {
-                      width: `${(checked.size / Math.max(1, result.verification.length)) * 100}%`,
-                    },
+                    { width: `${(checked.size / Math.max(1, safetyPlan.length)) * 100}%` },
                   ]}
                 />
               </View>
             </View>
-            <Checklist items={result.verification} checked={checked} onToggle={toggleStep} />
+            <Checklist items={safetyPlan} checked={checked} onToggle={toggleStep} />
           </Card>
         </View>
 
         <Card style={styles.helpCard}>
           <Text style={styles.helpTitle}>Already paid or shared your details?</Text>
           <Text style={styles.helpText}>
-            Act quickly. Call your bank to block the payment, then report the fraud.
+            Act fast. The first few hours matter most. Call 1930, then follow our step-by-step
+            emergency guide to block payments and protect your accounts.
           </Text>
           <View style={styles.helpActions}>
             <AppButton
@@ -241,14 +288,45 @@ export default function ResultScreen() {
               style={styles.flex}
             />
             <AppButton
-              label="Report online"
-              icon="open-outline"
+              label="Emergency steps"
+              icon="medkit-outline"
               variant="secondary"
-              onPress={() => Linking.openURL("https://cybercrime.gov.in/")}
+              onPress={openEmergency}
               style={styles.flex}
             />
           </View>
         </Card>
+
+        {relatedTopics.length > 0 && (
+          <View>
+            <SectionHeader
+              icon="school-outline"
+              title="Learn more"
+              subtitle="Understand the tricks behind these warning signs."
+            />
+            <Card style={styles.topicsCard}>
+              {relatedTopics.map((topic, index) => (
+                <Pressable
+                  key={topic.id}
+                  onPress={() => openTopic(topic.id)}
+                  accessibilityRole="link"
+                  style={({ pressed }) => [
+                    styles.topicRow,
+                    index > 0 && styles.topicDivider,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Ionicons name={topic.icon} size={22} color={Palette.brand} />
+                  <View style={styles.flex}>
+                    <Text style={styles.topicTitle}>{topic.title}</Text>
+                    <Text style={styles.topicSummary}>{topic.summary}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Palette.subtle} />
+                </Pressable>
+              ))}
+            </Card>
+          </View>
+        )}
 
         <Text style={styles.disclaimer}>
           This check looks for common warning signs and can make mistakes. It is not investment
@@ -346,11 +424,76 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
   },
-  explanation: {
+  reasonBox: {
     marginTop: 14,
+    gap: 4,
+  },
+  reasonLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Palette.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  reasonText: {
+    fontSize: 15,
+    lineHeight: 23,
+    color: Palette.ink,
+    fontWeight: "600",
+  },
+  reasonStrong: {
+    fontWeight: "800",
+  },
+  explanation: {
+    marginTop: 10,
     fontSize: 15,
     lineHeight: 23,
     color: Palette.text,
+  },
+  urgentStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: Palette.dangerSoft,
+    marginTop: -10,
+  },
+  urgentTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Palette.danger,
+  },
+  urgentText: {
+    fontSize: 13,
+    color: Palette.text,
+    marginTop: 2,
+  },
+  topicsCard: {
+    paddingVertical: 4,
+  },
+  topicRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+  },
+  topicDivider: {
+    borderTopWidth: 1,
+    borderTopColor: Palette.border,
+  },
+  topicTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Palette.ink,
+  },
+  topicSummary: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: Palette.muted,
+    marginTop: 2,
   },
   signals: {
     gap: 12,

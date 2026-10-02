@@ -38,6 +38,26 @@ SOCIAL_TIP = re.compile(
     r"\b(telegram|whatsapp|instagram|youtube)\b.{0,30}?\b(tips?|group|channel|signals?)\b",
     re.I | re.S,
 )
+FAKE_PLATFORM = re.compile(
+    r"\b(withdrawal (?:fees?|charges?|tax)|pay (?:the )?(?:tax|fees?) (?:to|before) withdraw\w*|"
+    r"institutional account|qib account|vip (?:account|trading account)|otc (?:trading|account)|"
+    r"ipo allotment (?:guaranteed|confirmed|assured)|download (?:our|the) (?:trading )?app)\b",
+    re.I,
+)
+PYRAMID = re.compile(
+    r"\b(refer(?:ral)? (?:bonus|income)|refer and earn|joining bonus|level income|"
+    r"add \d+ members|recruit(?:ing)? (?:members|people|friends)|earn (?:by|on) (?:joining|referring)|"
+    r"chain (?:scheme|plan)|binary plan)\b",
+    re.I,
+)
+ADVISER_CLAIM = re.compile(
+    r"\b(investment advis[eo]r|research analyst|stock (?:expert|guru|advis[eo]r)|"
+    r"trading (?:expert|mentor|academy|coach)|portfolio manag\w+|advisory (?:services?|firm|team)|"
+    r"premium calls|intraday calls|paid (?:calls|tips|signals))\b",
+    re.I,
+)
+# SEBI registration numbers: INA (investment adviser), INH (research analyst), INZ / INP (others).
+SEBI_REG_NUMBER = re.compile(r"\bIN[AHZP]\d{9}\b")
 
 # Below this much readable text, a "no warning signs" verdict would be misleading.
 MIN_READABLE_CHARS = 15
@@ -65,6 +85,7 @@ def _matches(*patterns: re.Pattern, text: str, limit: int = 3) -> list[str]:
 
 def _add(
     signals: list[dict],
+    signal_id: str,
     category: str,
     severity: str,
     title: str,
@@ -73,6 +94,7 @@ def _add(
 ) -> None:
     signals.append(
         {
+            "id": signal_id,
             "category": category,
             "severity": severity,
             "title": title,
@@ -84,7 +106,15 @@ def _add(
 
 def _score(signals: list[dict]) -> tuple[str, int]:
     weights = {"high": 3, "medium": 2, "low": 1}
-    total = min(10, sum(weights.get(s["severity"], 1) for s in signals))
+    # A serious signal backed by several distinct phrases is stronger evidence than a single word.
+    total = min(
+        10,
+        sum(
+            weights.get(s["severity"], 1)
+            + (1 if s["severity"] == "high" and len(s.get("evidence") or []) >= 2 else 0)
+            for s in signals
+        ),
+    )
     if not signals:
         return "LOW_ATTENTION", 1
     if total >= 7:
@@ -115,6 +145,7 @@ def analyze_content(
     if evidence:
         _add(
             signals,
+            "guaranteed_returns",
             "content",
             "high",
             "Promises guaranteed or huge returns",
@@ -127,6 +158,7 @@ def analyze_content(
     if evidence:
         _add(
             signals,
+            "urgency",
             "behavior",
             "medium",
             "Pushes you to act fast",
@@ -139,6 +171,7 @@ def analyze_content(
     if evidence:
         _add(
             signals,
+            "unverified_tip",
             "source",
             "high",
             "Secret tip or chat-group promotion",
@@ -151,6 +184,7 @@ def analyze_content(
     if evidence:
         _add(
             signals,
+            "fake_regulator",
             "source",
             "high",
             "Uses SEBI or government name to look trustworthy",
@@ -159,10 +193,64 @@ def analyze_content(
             evidence,
         )
 
+    evidence = _matches(ADVISER_CLAIM, text=text)
+    if evidence:
+        reg_numbers = _matches(SEBI_REG_NUMBER, text=text)
+        if reg_numbers:
+            _add(
+                signals,
+                "unregistered_adviser",
+                "source",
+                "low",
+                "Shows a registration number. Verify it.",
+                "The message claims to be from an adviser and shows a SEBI-style registration "
+                "number. Scammers sometimes copy real numbers, so check that the name and contact "
+                "details match SEBI's official records.",
+                evidence[:2] + reg_numbers[:1],
+            )
+        else:
+            _add(
+                signals,
+                "unregistered_adviser",
+                "source",
+                "medium",
+                "Claims to be an adviser without proof of registration",
+                "Only SEBI-registered advisers and research analysts may give paid stock advice. "
+                "This message offers advice but shows no SEBI registration number.",
+                evidence,
+            )
+
+    evidence = _matches(FAKE_PLATFORM, text=text)
+    if evidence:
+        _add(
+            signals,
+            "fake_platform",
+            "content",
+            "high",
+            "Signs of a fake trading app or platform",
+            "Fake trading apps show made-up profits, then ask for 'withdrawal tax' or fees "
+            "before you can take money out. Real brokers never charge to release your own money.",
+            evidence,
+        )
+
+    evidence = _matches(PYRAMID, text=text)
+    if evidence:
+        _add(
+            signals,
+            "pyramid_scheme",
+            "content",
+            "high",
+            "Pays you for recruiting others",
+            "Schemes that reward you for bringing in new members are typical of Ponzi and "
+            "pyramid schemes. They collapse when recruiting slows, and most people lose money.",
+            evidence,
+        )
+
     evidence = _matches(OTP_PRESSURE, text=text)
     if evidence:
         _add(
             signals,
+            "sensitive_request",
             "privacy",
             "high",
             "Asks for OTP, PIN, or password",
@@ -175,6 +263,7 @@ def analyze_content(
     if evidence:
         _add(
             signals,
+            "payment_request",
             "behavior",
             "medium",
             "Asks you to send money",
@@ -184,9 +273,10 @@ def analyze_content(
         )
 
     entity_types = {e.get("type") for e in entities}
-    if "secret_request" in entity_types and not any(s["category"] == "privacy" for s in signals):
+    if "secret_request" in entity_types and not any(s["id"] == "sensitive_request" for s in signals):
         _add(
             signals,
+            "sensitive_request",
             "privacy",
             "high",
             "Asks for sensitive details",
@@ -197,6 +287,7 @@ def analyze_content(
     if urls:
         _add(
             signals,
+            "suspicious_url",
             "source",
             "medium",
             "Contains links",
@@ -208,6 +299,7 @@ def analyze_content(
     if phishing_label == "phishing" and (phishing_confidence or 0) >= 55:
         _add(
             signals,
+            "phishing_visual",
             "visual",
             "high",
             "Looks like a known fake page",

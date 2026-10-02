@@ -26,10 +26,10 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Stay Safe</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="learn">
+        <NativeTabs.Trigger.Label>Learn</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={<VectorIcon family={Ionicons} name="shield-checkmark-outline" />}
+          src={<VectorIcon family={Ionicons} name="school-outline" />}
           renderingMode="template"
         />
       </NativeTabs.Trigger>

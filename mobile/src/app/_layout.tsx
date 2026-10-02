@@ -34,6 +34,8 @@ export default function RootLayout() {
           />
           <Stack.Screen name="inconclusive" options={{ headerShown: false }} />
           <Stack.Screen name="scan-error" options={{ headerShown: false }} />
+          <Stack.Screen name="learn/[topic]" options={{ title: 'Learn & Protect' }} />
+          <Stack.Screen name="emergency" options={{ title: 'Emergency help' }} />
         </Stack>
       </ScanProvider>
     </ThemeProvider>

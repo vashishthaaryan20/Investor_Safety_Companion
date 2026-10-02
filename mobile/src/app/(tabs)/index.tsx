@@ -19,10 +19,36 @@ const HOW_IT_WORKS = [
 ] as const;
 
 const SCAM_SIGNS = [
-  { icon: "trending-up", title: "Guaranteed returns", text: "\"Double your money in 7 days\"" },
-  { icon: "timer-outline", title: "Pressure to hurry", text: "\"Only 10 slots left, pay now\"" },
-  { icon: "key-outline", title: "Asks for OTP", text: "\"Share OTP to confirm your seat\"" },
-  { icon: "ribbon-outline", title: "Fake approvals", text: "\"SEBI approved scheme\"" },
+  {
+    icon: "trending-up",
+    title: "Guaranteed returns",
+    text: "\"Double your money in 7 days\"",
+    topic: "common-scams",
+  },
+  {
+    icon: "phone-portrait-outline",
+    title: "Fake trading apps",
+    text: "\"Pay 10% tax to withdraw profit\"",
+    topic: "fake-trading-platforms",
+  },
+  {
+    icon: "git-network-outline",
+    title: "Pay to recruit",
+    text: "\"Add 5 members, earn level income\"",
+    topic: "ponzi-pyramid",
+  },
+  {
+    icon: "ribbon-outline",
+    title: "Fake approvals",
+    text: "\"SEBI approved scheme\"",
+    topic: "fake-sebi-registration",
+  },
+  {
+    icon: "key-outline",
+    title: "Asks for OTP",
+    text: "\"Share OTP to confirm your seat\"",
+    topic: "phishing-impersonation",
+  },
 ] as const;
 
 export default function HomeScreen() {
@@ -129,21 +155,51 @@ export default function HomeScreen() {
       </View>
 
       <View>
-        <SectionHeader title="Common scam signs" subtitle="If you see these, stop and verify." />
+        <View style={styles.recentHeader}>
+          <View style={styles.flex}>
+            <SectionHeader title="Common scam signs" subtitle="Tap a sign to learn how it works." />
+          </View>
+          <Pressable onPress={() => router.navigate("/learn")} hitSlop={8} accessibilityRole="link">
+            <Text style={styles.seeAll}>Learn more</Text>
+          </Pressable>
+        </View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.signs}
         >
           {SCAM_SIGNS.map((sign) => (
-            <Card key={sign.title} style={styles.signCard}>
-              <Ionicons name={sign.icon} size={24} color={Palette.danger} />
-              <Text style={styles.signTitle}>{sign.title}</Text>
-              <Text style={styles.signText}>{sign.text}</Text>
-            </Card>
+            <Pressable
+              key={sign.title}
+              onPress={() =>
+                router.push({ pathname: "/learn/[topic]", params: { topic: sign.topic } })
+              }
+              accessibilityRole="link"
+              style={({ pressed }) => pressed && { opacity: 0.8 }}
+            >
+              <Card style={styles.signCard}>
+                <Ionicons name={sign.icon} size={24} color={Palette.danger} />
+                <Text style={styles.signTitle}>{sign.title}</Text>
+                <Text style={styles.signText}>{sign.text}</Text>
+                <Text style={styles.signLink}>Learn how it works</Text>
+              </Card>
+            </Pressable>
           ))}
         </ScrollView>
       </View>
+
+      <Pressable
+        onPress={() => router.push("/emergency")}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.emergency, pressed && { opacity: 0.85 }]}
+      >
+        <Ionicons name="medkit-outline" size={24} color={Palette.danger} />
+        <View style={styles.flex}>
+          <Text style={styles.emergencyTitle}>Lost money or shared your OTP?</Text>
+          <Text style={styles.emergencyText}>Get step-by-step emergency help now.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={Palette.danger} />
+      </Pressable>
 
       <Text style={styles.footer}>
         SANGYAN Shield gives safety information only. It never tells you to buy, sell, or hold any
@@ -281,6 +337,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     color: Palette.muted,
+  },
+  signLink: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Palette.brand,
+    marginTop: 2,
+  },
+  emergency: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: Palette.dangerSoft,
+  },
+  flex: {
+    flex: 1,
+  },
+  emergencyTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Palette.danger,
+  },
+  emergencyText: {
+    fontSize: 13,
+    color: Palette.text,
+    marginTop: 2,
   },
   footer: {
     fontSize: 12,

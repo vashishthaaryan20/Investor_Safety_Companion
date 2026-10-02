@@ -15,6 +15,7 @@ export const API_BASE_URL = "http://10.30.54.3:8000";
 const REQUEST_TIMEOUT_MS = 90_000;
 
 export interface AnalysisSignal {
+  id?: string;
   category: string;
   severity: string;
   title: string;

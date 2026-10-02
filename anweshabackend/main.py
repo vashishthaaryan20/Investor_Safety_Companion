@@ -21,7 +21,7 @@ sys.path = [str(SRC_DIR), str(BACKEND_DIR)] + [
     and Path(p).resolve() != BACKEND_DIR
 ]
 
-from phishing_detector.ocr import analyze_image  # noqa: E402
+from phishing_detector.ocr import analyze_image, extract_entities  # noqa: E402
 from safety_engine import analyze_content  # noqa: E402
 
 UPLOAD_DIR = BACKEND_DIR / "uploads"
@@ -115,7 +115,7 @@ async def analyze_screenshot(image: UploadFile = File(...)):
 
 @app.post("/api/v1/analyze-text")
 def analyze_pasted_text(payload: TextPayload):
-    result = analyze_content(payload.text, entities=[])
+    result = analyze_content(payload.text, entities=extract_entities(payload.text))
     result["analysis_mode"] = "pasted_text"
     return result
 
