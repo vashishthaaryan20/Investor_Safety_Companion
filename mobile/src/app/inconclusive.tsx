@@ -1,8 +1,10 @@
 import { Redirect, useRouter } from "expo-router";
-import { StyleSheet, Text } from "react-native";
+import { useEffect } from "react";
+import { AccessibilityInfo } from "react-native";
 
-import { AppButton, BulletList, Card, SectionHeader, StatusScreen } from "@/components/sangyan/ui";
-import { Palette } from "@/constants/palette";
+import { InlineAlert, StatusScreen } from "@/components/sangyan/feedback";
+import { AppButton, AppText, BulletList, Card, SectionHeader } from "@/components/sangyan/ui";
+import { Colors } from "@/constants/design";
 import { useScan, type ScanMode } from "@/state/scan-store";
 
 const BETTER_SCREENSHOT_TIPS = [
@@ -22,6 +24,12 @@ export default function InconclusiveScreen() {
   const router = useRouter();
   const { result, resetDraft } = useScan();
 
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility(
+      "Check finished, but no result could be established."
+    );
+  }, []);
+
   if (!result) {
     return <Redirect href="/" />;
   }
@@ -35,11 +43,10 @@ export default function InconclusiveScreen() {
 
   return (
     <StatusScreen
-      icon="eye-off-outline"
-      color={Palette.caution}
-      background={Palette.cautionSoft}
+      tone="neutral"
+      icon="help-circle-outline"
       eyebrow="Result unclear"
-      title="We couldn't read enough"
+      title="No result could be established"
       message={result.explanation}
       actions={
         <>
@@ -54,14 +61,21 @@ export default function InconclusiveScreen() {
             variant="secondary"
             onPress={() => restart("text")}
           />
-          <AppButton label="Go home" variant="ghost" onPress={() => router.dismissTo("/")} />
+          <AppButton label="Go home" variant="tertiary" onPress={() => router.dismissTo("/")} />
         </>
       }
     >
+      <InlineAlert
+        tone="caution"
+        title="This is not a “safe” result"
+        message="We couldn't read enough to look for warning signs. Treat the message with care until you can check it properly."
+      />
       {!!partialText && (
         <Card>
           <SectionHeader title="What we could read" />
-          <Text style={styles.partial}>{partialText}</Text>
+          <AppText tone="muted" style={{ fontStyle: "italic" }}>
+            {partialText}
+          </AppText>
         </Card>
       )}
       <Card>
@@ -70,17 +84,8 @@ export default function InconclusiveScreen() {
       </Card>
       <Card>
         <SectionHeader icon="shield-outline" title="Stay safe meanwhile" />
-        <BulletList items={STAY_SAFE_TIPS} color={Palette.success} />
+        <BulletList items={STAY_SAFE_TIPS} color={Colors.success} />
       </Card>
     </StatusScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  partial: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.muted,
-    fontStyle: "italic",
-  },
-});

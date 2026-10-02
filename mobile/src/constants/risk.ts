@@ -3,72 +3,98 @@ import type Ionicons from "@expo/vector-icons/Ionicons";
 
 import type { AnalysisResult } from "@/services/api";
 
-import { Palette } from "./palette";
+import { ToneColors, type Tone } from "./design";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
+/**
+ * Every risk level has a distinct label and icon shape as well as a colour, so it is
+ * understandable without colour (colour blindness, greyscale, screen readers).
+ */
 export interface RiskCopy {
   label: string;
   headline: string;
   advice: string;
+  tone: Tone;
   color: string;
   soft: string;
+  border: string;
   icon: IconName;
 }
 
+function riskCopy(
+  tone: Tone,
+  icon: IconName,
+  label: string,
+  headline: string,
+  advice: string
+): RiskCopy {
+  const colors = ToneColors[tone];
+  return { label, headline, advice, tone, icon, color: colors.fg, soft: colors.bg, border: colors.border };
+}
+
 const RISK_COPY: Record<string, RiskCopy> = {
-  HIGH_ATTENTION: {
-    label: "High risk",
-    headline: "Strong signs of a scam",
-    advice: "Do not pay, click links, or share OTPs.",
-    color: Palette.danger,
-    soft: Palette.dangerSoft,
-    icon: "warning",
-  },
-  ELEVATED: {
-    label: "Risky",
-    headline: "Several warning signs found",
-    advice: "Stop and verify before doing anything.",
-    color: Palette.warning,
-    soft: Palette.warningSoft,
-    icon: "alert-circle",
-  },
-  MODERATE: {
-    label: "Be careful",
-    headline: "Some warning signs found",
-    advice: "Check the source before you act.",
-    color: Palette.caution,
-    soft: Palette.cautionSoft,
-    icon: "help-circle",
-  },
-  LOW_ATTENTION: {
-    label: "Low risk",
-    headline: "No common scam signs found",
-    advice: "This is not a guarantee. Always verify first.",
-    color: Palette.success,
-    soft: Palette.successSoft,
-    icon: "shield-checkmark",
-  },
+  HIGH_ATTENTION: riskCopy(
+    "critical",
+    "warning",
+    "High risk",
+    "Strong signs of a scam",
+    "Do not pay, click links, or share OTPs."
+  ),
+  ELEVATED: riskCopy(
+    "warning",
+    "alert-circle",
+    "Risky",
+    "Several warning signs found",
+    "Stop and verify before doing anything."
+  ),
+  MODERATE: riskCopy(
+    "caution",
+    "eye",
+    "Be careful",
+    "Some warning signs found",
+    "Check the source before you act."
+  ),
+  LOW_ATTENTION: riskCopy(
+    "success",
+    "shield-checkmark",
+    "Low risk",
+    "No common scam signs found",
+    "This is not a guarantee. Always verify first."
+  ),
 };
+
+const UNCLEAR_COPY = riskCopy(
+  "neutral",
+  "help-circle",
+  "Unclear",
+  "We couldn't check this properly",
+  "Try a clearer screenshot or paste the message."
+);
 
 export function getRiskCopy(level: string): RiskCopy {
   return RISK_COPY[level] ?? RISK_COPY.MODERATE;
+}
+
+export function getResultCopy(result: AnalysisResult): RiskCopy {
+  return isInconclusive(result) ? UNCLEAR_COPY : getRiskCopy(result.risk.level);
 }
 
 export interface SeverityCopy {
   label: string;
   color: string;
   soft: string;
+  icon: IconName;
 }
 
 export function getSeverityCopy(severity: string): SeverityCopy {
   switch (severity) {
     case "high":
-      return { label: "Serious", color: Palette.danger, soft: Palette.dangerSoft };
+      return { label: "Serious", color: ToneColors.critical.fg, soft: ToneColors.critical.bg, icon: "warning" };
     case "medium":
-      return { label: "Caution", color: Palette.warning, soft: Palette.warningSoft };
+      return { label: "Caution", color: ToneColors.warning.fg, soft: ToneColors.warning.bg, icon: "alert-circle" };
     default:
-      return { label: "Note", color: Palette.muted, soft: Palette.background };
+      return { label: "Note", color: ToneColors.neutral.fg, soft: ToneColors.neutral.bg, icon: "information-circle" };
   }
 }
 

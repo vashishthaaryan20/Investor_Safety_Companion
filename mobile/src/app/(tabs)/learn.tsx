@@ -1,12 +1,12 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StyleSheet, View } from "react-native";
 
-import { Card, IconBadge, SectionHeader } from "@/components/sangyan/ui";
+import { EmergencyBanner } from "@/components/sangyan/feedback";
+import { Screen, ScreenTitle } from "@/components/sangyan/screen";
+import { AppText, Card, IconBadge, ListRow, OptionCard, SectionHeader } from "@/components/sangyan/ui";
+import { Colors, Space } from "@/constants/design";
 import { LEARN_TOPICS } from "@/constants/learn-content";
-import { Palette, Radius } from "@/constants/palette";
-import { BottomTabInset } from "@/constants/theme";
+import { openLink } from "@/utils/open-link";
 
 const RULES = [
   {
@@ -50,38 +50,15 @@ const LINKS = [
 
 export default function LearnScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + 20, paddingBottom: insets.bottom + BottomTabInset + 24 },
-      ]}
-    >
-      <View>
-        <Text style={styles.title} accessibilityRole="header">
-          Learn & Protect
-        </Text>
-        <Text style={styles.lead}>
-          Understand how investment scams work so you can spot them early. SANGYAN Shield never
-          tells you which stock to buy, sell, or hold.
-        </Text>
-      </View>
+    <Screen tabs safeTop>
+      <ScreenTitle
+        title="Learn & Protect"
+        subtitle="Understand how investment scams work so you can spot them early. SANGYAN Shield never tells you which stock to buy, sell, or hold."
+      />
 
-      <Pressable
-        onPress={() => router.push("/emergency")}
-        accessibilityRole="button"
-        style={({ pressed }) => [styles.emergency, pressed && { opacity: 0.9 }]}
-      >
-        <IconBadge icon="medkit" color="#FFFFFF" background="rgba(255,255,255,0.18)" size={46} />
-        <View style={styles.flex}>
-          <Text style={styles.emergencyTitle}>Lost money or shared your OTP?</Text>
-          <Text style={styles.emergencyText}>Get step-by-step emergency help now</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
-      </Pressable>
+      <EmergencyBanner onPress={() => router.push("/emergency")} />
 
       <View>
         <SectionHeader
@@ -89,41 +66,30 @@ export default function LearnScreen() {
           title="Know the tricks"
           subtitle="Short guides with real examples. Tap a topic to learn more."
         />
-        <View style={styles.topics}>
+        <View style={styles.list}>
           {LEARN_TOPICS.map((topic) => (
-            <Pressable
+            <OptionCard
               key={topic.id}
+              icon={topic.icon}
+              title={topic.title}
+              description={topic.summary}
               onPress={() => router.push({ pathname: "/learn/[topic]", params: { topic: topic.id } })}
-              accessibilityRole="link"
-              style={({ pressed }) => pressed && { opacity: 0.8 }}
-            >
-              <Card style={styles.topic}>
-                <IconBadge
-                  icon={topic.icon}
-                  color={Palette.brand}
-                  background={Palette.brandSoft}
-                  size={44}
-                />
-                <View style={styles.flex}>
-                  <Text style={styles.topicTitle}>{topic.title}</Text>
-                  <Text style={styles.topicSummary}>{topic.summary}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Palette.subtle} />
-              </Card>
-            </Pressable>
+            />
           ))}
         </View>
       </View>
 
       <View>
         <SectionHeader icon="star-outline" title="Golden rules" subtitle="Four habits that protect your money." />
-        <View style={styles.rules}>
+        <View style={styles.list}>
           {RULES.map((rule) => (
             <Card key={rule.title} style={styles.rule}>
-              <IconBadge icon={rule.icon} color={Palette.success} background={Palette.successSoft} size={40} />
+              <IconBadge icon={rule.icon} color={Colors.success} background={Colors.successSoft} size={40} />
               <View style={styles.flex}>
-                <Text style={styles.ruleTitle}>{rule.title}</Text>
-                <Text style={styles.ruleText}>{rule.body}</Text>
+                <AppText variant="subheading" tone="ink">
+                  {rule.title}
+                </AppText>
+                <AppText variant="caption">{rule.body}</AppText>
               </View>
             </Card>
           ))}
@@ -134,124 +100,35 @@ export default function LearnScreen() {
         <SectionHeader icon="call-outline" title="Official help" subtitle="Government helplines and portals only." />
         <Card style={styles.links}>
           {LINKS.map((link, index) => (
-            <Pressable
+            <ListRow
               key={link.url}
-              onPress={() => Linking.openURL(link.url)}
-              accessibilityRole="link"
-              style={({ pressed }) => [
-                styles.linkRow,
-                index > 0 && styles.linkDivider,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Ionicons name={link.icon} size={22} color={Palette.brand} />
-              <Text style={styles.linkText}>{link.label}</Text>
-              <Ionicons name="chevron-forward" size={18} color={Palette.subtle} />
-            </Pressable>
+              icon={link.icon}
+              label={link.label}
+              external
+              divider={index > 0}
+              accessibilityHint={link.url.startsWith("tel:") ? "Starts a phone call" : "Opens the official website"}
+              onPress={() => openLink(link.url, link.label)}
+            />
           ))}
         </Card>
       </View>
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Palette.background,
-  },
-  content: {
-    paddingHorizontal: 20,
-    gap: 26,
-  },
   flex: {
     flex: 1,
   },
-  title: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  lead: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.muted,
-    marginTop: 6,
-  },
-  emergency: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 16,
-    borderRadius: Radius.xl,
-    backgroundColor: Palette.danger,
-  },
-  emergencyTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  emergencyText: {
-    fontSize: 13,
-    color: "#FEE2E2",
-    marginTop: 2,
-  },
-  topics: {
-    gap: 10,
-  },
-  topic: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 14,
-  },
-  topicTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  topicSummary: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: Palette.muted,
-    marginTop: 2,
-  },
-  rules: {
-    gap: 10,
+  list: {
+    gap: Space.sm + 2,
   },
   rule: {
     flexDirection: "row",
-    gap: 14,
+    gap: Space.md,
     alignItems: "flex-start",
   },
-  ruleTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  ruleText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: Palette.text,
-    marginTop: 4,
-  },
   links: {
-    paddingVertical: 4,
-  },
-  linkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-  },
-  linkDivider: {
-    borderTopWidth: 1,
-    borderTopColor: Palette.border,
-  },
-  linkText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "600",
-    color: Palette.ink,
+    paddingVertical: Space.xs,
   },
 });

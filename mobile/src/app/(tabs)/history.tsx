@@ -1,22 +1,16 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import {
-  ActivityIndicator,
-  Alert,
-  SectionList,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from "react-native";
+import { SectionList, StyleSheet, Switch, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { EmptyState, LoadingState } from "@/components/sangyan/feedback";
 import { HistoryRow } from "@/components/sangyan/history-row";
-import { AppButton, Card, IconBadge } from "@/components/sangyan/ui";
-import { Palette, Radius } from "@/constants/palette";
+import { contentWidth, ScreenTitle, StatusBarScrim } from "@/components/sangyan/screen";
+import { AppButton, AppText, Card } from "@/components/sangyan/ui";
+import { Colors, Layout, Radius, Space } from "@/constants/design";
 import { isInconclusive } from "@/constants/risk";
-import { BottomTabInset } from "@/constants/theme";
 import { useScan, type ScanRecord } from "@/state/scan-store";
+import { confirmAction } from "@/utils/confirm";
 import { formatDayLabel } from "@/utils/format-date";
 
 interface HistorySection {
@@ -61,22 +55,24 @@ export default function HistoryScreen() {
     router.push(isInconclusive(record.result) ? "/inconclusive" : "/result");
   };
 
-  const confirmDelete = (record: ScanRecord) => {
-    Alert.alert("Delete this check?", "It will be removed from this phone.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteScan(record.id) },
-    ]);
+  const confirmDelete = async (record: ScanRecord) => {
+    const confirmed = await confirmAction({
+      title: "Delete this check?",
+      message: "It will be removed from this phone.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (confirmed) deleteScan(record.id);
   };
 
-  const confirmClearAll = () => {
-    Alert.alert(
-      "Clear all history?",
-      `This permanently deletes all ${history.length} saved check${history.length === 1 ? "" : "s"} from this phone. This can't be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Clear all", style: "destructive", onPress: clearHistory },
-      ]
-    );
+  const confirmClearAll = async () => {
+    const confirmed = await confirmAction({
+      title: "Clear all history?",
+      message: `This permanently deletes all ${history.length} saved check${history.length === 1 ? "" : "s"} from this phone. This can't be undone.`,
+      confirmLabel: "Clear all",
+      destructive: true,
+    });
+    if (confirmed) clearHistory();
   };
 
   const startCheck = () => {
@@ -86,21 +82,28 @@ export default function HistoryScreen() {
 
   const header = (
     <View style={styles.header}>
-      <Text style={styles.title} accessibilityRole="header">
-        History
-      </Text>
-      <Text style={styles.subtitle}>
-        Look back at your past checks without uploading them again.
-      </Text>
+      <ScreenTitle
+        title="History"
+        subtitle="Look back at your past checks without uploading them again."
+      />
       {history.length > 0 && (
         <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{history.length}</Text>
-            <Text style={styles.statLabel}>Saved checks</Text>
+          <View style={styles.stat} accessible accessibilityLabel={`${history.length} saved checks`}>
+            <AppText variant="title">{history.length}</AppText>
+            <AppText variant="caption" tone="muted">
+              Saved checks
+            </AppText>
           </View>
-          <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: Palette.danger }]}>{highRisk}</Text>
-            <Text style={styles.statLabel}>High risk</Text>
+          <View style={styles.stat} accessible accessibilityLabel={`${highRisk} high risk`}>
+            <View style={styles.statValueRow}>
+              <Ionicons name="warning" size={18} color={Colors.critical} />
+              <AppText variant="title" tone="critical">
+                {highRisk}
+              </AppText>
+            </View>
+            <AppText variant="caption" tone="muted">
+              High risk
+            </AppText>
           </View>
         </View>
       )}
@@ -111,26 +114,31 @@ export default function HistoryScreen() {
     <View style={styles.footer}>
       <Card style={styles.privacyCard}>
         <View style={styles.privacyHeader}>
-          <Ionicons name="lock-closed-outline" size={20} color={Palette.navy} />
-          <Text style={styles.privacyTitle}>Your history stays on this phone</Text>
+          <Ionicons name="lock-closed-outline" size={20} color={Colors.primary} />
+          <AppText variant="subheading" tone="ink" style={styles.flex} accessibilityRole="header">
+            Your history stays on this phone
+          </AppText>
         </View>
-        <Text style={styles.privacyText}>
+        <AppText variant="caption">
           We save the text we read and the result, never your screenshot. Saved text can still
           include personal details, so clear your history if you share this phone.
-        </Text>
+        </AppText>
         <View style={styles.toggleRow}>
-          <View style={styles.toggleText}>
-            <Text style={styles.toggleTitle}>Save new checks</Text>
-            <Text style={styles.toggleHint}>
+          <View style={styles.flex}>
+            <AppText variant="bodyStrong" tone="ink">
+              Save new checks
+            </AppText>
+            <AppText variant="caption" tone="muted">
               {settings.saveHistory
                 ? "New checks are added to this list."
                 : "New checks won't be saved."}
-            </Text>
+            </AppText>
           </View>
           <Switch
             value={settings.saveHistory}
             onValueChange={setSaveHistory}
-            trackColor={{ true: Palette.brand, false: Palette.border }}
+            trackColor={{ true: Colors.secondary, false: Colors.borderStrong }}
+            thumbColor={Colors.surface}
             accessibilityLabel="Save new checks on this phone"
           />
         </View>
@@ -138,157 +146,137 @@ export default function HistoryScreen() {
           <AppButton
             label="Clear all history"
             icon="trash-outline"
-            variant="secondary"
+            variant="danger"
             onPress={confirmClearAll}
-            style={styles.clearButton}
           />
         )}
       </Card>
     </View>
   );
 
-  const contentStyle = {
-    paddingTop: insets.top + 20,
-    paddingBottom: insets.bottom + BottomTabInset + 24,
-  };
+  const contentStyle = [
+    styles.content,
+    {
+      paddingTop: insets.top + Space.lg,
+      paddingBottom: insets.bottom + Layout.tabBarInset + Space.xxl,
+    },
+  ];
 
   if (!historyLoaded) {
     return (
-      <View style={[styles.screen, styles.loading]}>
-        <ActivityIndicator color={Palette.brand} size="large" />
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        <LoadingState label="Loading your saved checks…" />
       </View>
     );
   }
 
-  if (history.length === 0) {
-    return (
+  const list =
+    history.length === 0 ? (
       <SectionList
         style={styles.screen}
-        contentContainerStyle={[styles.content, contentStyle]}
+        contentContainerStyle={contentStyle}
         sections={[]}
         renderItem={() => null}
         ListHeaderComponent={
           <>
             {header}
             <Card style={styles.empty}>
-              <IconBadge
+              <EmptyState
                 icon="time-outline"
-                color={Palette.brand}
-                background={Palette.brandSoft}
-                size={72}
-              />
-              <Text style={styles.emptyTitle}>No saved checks yet</Text>
-              <Text style={styles.emptyText}>
-                {settings.saveHistory
-                  ? "When you check a screenshot or message, the result will be saved here so you can open it again anytime."
-                  : "Saving is turned off. Turn on \"Save new checks\" below to keep your results here."}
-              </Text>
-              <AppButton
-                label="Start a check"
-                icon="scan-outline"
-                onPress={startCheck}
-                style={styles.emptyButton}
+                title="No saved checks yet"
+                message={
+                  settings.saveHistory
+                    ? "When you check a screenshot or message, the result will be saved here so you can open it again anytime."
+                    : "Saving is turned off. Turn on “Save new checks” below to keep your results here."
+                }
+                action={{ label: "Start a check", icon: "scan-outline", onPress: startCheck }}
               />
             </Card>
           </>
         }
         ListFooterComponent={footer}
       />
+    ) : (
+      <SectionList
+        style={styles.screen}
+        contentContainerStyle={contentStyle}
+        sections={groupByDay(history)}
+        keyExtractor={(record) => record.id}
+        stickySectionHeadersEnabled={false}
+        ListHeaderComponent={header}
+        ListFooterComponent={footer}
+        renderSectionHeader={({ section }) => (
+          <AppText variant="overline" tone="muted" style={styles.sectionTitle} accessibilityRole="header">
+            {section.title}
+          </AppText>
+        )}
+        renderItem={({ item, index, section }) => (
+          <View
+            style={[
+              styles.rowCard,
+              index === 0 && styles.rowFirst,
+              index === section.data.length - 1 && styles.rowLast,
+              index > 0 && styles.rowDivider,
+            ]}
+          >
+            <HistoryRow
+              record={item}
+              timeOnly
+              onPress={() => openRecord(item)}
+              onDelete={() => confirmDelete(item)}
+            />
+          </View>
+        )}
+      />
     );
-  }
 
   return (
-    <SectionList
-      style={styles.screen}
-      contentContainerStyle={[styles.content, contentStyle]}
-      sections={groupByDay(history)}
-      keyExtractor={(record) => record.id}
-      stickySectionHeadersEnabled={false}
-      ListHeaderComponent={header}
-      ListFooterComponent={footer}
-      renderSectionHeader={({ section }) => (
-        <Text style={styles.sectionTitle}>{section.title}</Text>
-      )}
-      renderItem={({ item, index, section }) => (
-        <View
-          style={[
-            styles.rowCard,
-            index === 0 && styles.rowFirst,
-            index === section.data.length - 1 && styles.rowLast,
-            index > 0 && styles.rowDivider,
-          ]}
-        >
-          <HistoryRow
-            record={item}
-            timeOnly
-            onPress={() => openRecord(item)}
-            onDelete={() => confirmDelete(item)}
-          />
-        </View>
-      )}
-    />
+    <View style={styles.screen}>
+      {list}
+      <StatusBarScrim />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Palette.background,
-  },
-  loading: {
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: Colors.background,
   },
   content: {
-    paddingHorizontal: 20,
+    ...contentWidth,
+    paddingHorizontal: Layout.screenPadding,
+  },
+  flex: {
+    flex: 1,
   },
   header: {
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.muted,
-    marginTop: 6,
+    gap: Space.lg,
+    marginBottom: Space.sm,
   },
   stats: {
     flexDirection: "row",
-    gap: 12,
-    marginTop: 18,
+    gap: Space.md,
   },
   stat: {
     flex: 1,
-    backgroundColor: Palette.surface,
+    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
-    padding: 14,
+    padding: Space.md + 2,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: Palette.muted,
-    marginTop: 2,
+  statValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.xs + 2,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: Palette.muted,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: Space.xl,
+    marginBottom: Space.sm,
   },
   rowCard: {
-    backgroundColor: Palette.surface,
-    paddingHorizontal: 14,
+    backgroundColor: Colors.surface,
+    paddingLeft: Space.md + 2,
+    paddingRight: Space.xs,
   },
   rowFirst: {
     borderTopLeftRadius: Radius.lg,
@@ -300,73 +288,28 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     borderTopWidth: 1,
-    borderTopColor: Palette.border,
+    borderTopColor: Colors.border,
   },
   empty: {
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 32,
-    marginTop: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: Palette.ink,
-    marginTop: 6,
-  },
-  emptyText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.muted,
-    textAlign: "center",
-  },
-  emptyButton: {
-    alignSelf: "stretch",
-    marginTop: 8,
+    marginTop: Space.lg,
   },
   footer: {
-    marginTop: 24,
+    marginTop: Space.xxl,
   },
   privacyCard: {
-    gap: 12,
+    gap: Space.md,
   },
   privacyHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  privacyTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  privacyText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: Palette.text,
+    gap: Space.sm,
   },
   toggleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingTop: 12,
+    gap: Space.md,
+    paddingTop: Space.md,
     borderTopWidth: 1,
-    borderTopColor: Palette.border,
-  },
-  toggleText: {
-    flex: 1,
-  },
-  toggleTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: Palette.ink,
-  },
-  toggleHint: {
-    fontSize: 13,
-    color: Palette.muted,
-    marginTop: 2,
-  },
-  clearButton: {
-    borderColor: "#FECACA",
+    borderTopColor: Colors.border,
   },
 });

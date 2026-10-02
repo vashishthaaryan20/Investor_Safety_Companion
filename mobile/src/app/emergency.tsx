@@ -1,13 +1,19 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import type { ComponentProps } from "react";
 import { useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 
-import { AppButton, BulletList, Card, SectionHeader } from "@/components/sangyan/ui";
-import { Palette, Radius } from "@/constants/palette";
-
-type IconName = ComponentProps<typeof Ionicons>["name"];
+import { InlineAlert } from "@/components/sangyan/feedback";
+import { Screen } from "@/components/sangyan/screen";
+import {
+  AppButton,
+  AppText,
+  BulletList,
+  Card,
+  SectionHeader,
+  type IconName,
+} from "@/components/sangyan/ui";
+import { Colors, Layout, Radius, Space } from "@/constants/design";
+import { openLink } from "@/utils/open-link";
 
 interface EmergencyStep {
   title: string;
@@ -150,262 +156,193 @@ const KEEP_READY = [
 ];
 
 export default function EmergencyScreen() {
-  const insets = useSafeAreaInsets();
+  const { width, fontScale } = useWindowDimensions();
   const [situationId, setSituationId] = useState(SITUATIONS[0].id);
   const situation = SITUATIONS.find((item) => item.id === situationId) ?? SITUATIONS[0];
+  const stackOptions = width < 360 || fontScale > 1.3;
 
   return (
-    <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <View style={styles.heroTop}>
-            <Ionicons name="time-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.heroEyebrow}>Act fast</Text>
-          </View>
-          <Text style={styles.heroTitle} accessibilityRole="header">
-            Don&apos;t panic. Follow these steps now.
-          </Text>
-          <Text style={styles.heroText}>
-            Reporting quickly gives you the best chance to stop the money or protect your accounts.
-            You are not to blame. Scammers fool careful people every day.
-          </Text>
-          <AppButton
-            label="Call 1930 – Cyber fraud helpline"
-            icon="call"
-            variant="secondary"
-            onPress={() => Linking.openURL("tel:1930")}
-          />
+    <Screen>
+      <View style={styles.hero}>
+        <View style={styles.heroTop}>
+          <Ionicons name="time-outline" size={22} color={Colors.inverse} />
+          <AppText variant="overline" tone="inverse">
+            Act fast
+          </AppText>
         </View>
+        <AppText variant="title" tone="inverse" accessibilityRole="header">
+          Don&apos;t panic. Follow these steps now.
+        </AppText>
+        <AppText tone="inverse" style={styles.heroText}>
+          Reporting quickly gives you the best chance to stop the money or protect your accounts.
+          You are not to blame. Scammers fool careful people every day.
+        </AppText>
+        <AppButton
+          label="Call 1930 – Cyber fraud helpline"
+          icon="call"
+          variant="inverse"
+          accessibilityHint="Starts a phone call to the national cyber fraud helpline"
+          onPress={() => openLink("tel:1930", "Cyber fraud helpline")}
+        />
+      </View>
 
-        <View>
-          <SectionHeader title="What happened?" subtitle="Choose your situation to see the right steps." />
-          <View style={styles.selector} accessibilityRole="tablist">
-            {SITUATIONS.map((item) => {
-              const active = item.id === situation.id;
-              return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => setSituationId(item.id)}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  style={[styles.option, active && styles.optionActive]}
+      <View>
+        <SectionHeader title="What happened?" subtitle="Choose your situation to see the right steps." />
+        <View style={[styles.selector, stackOptions && styles.selectorStacked]} accessibilityRole="tablist">
+          {SITUATIONS.map((item) => {
+            const active = item.id === situation.id;
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => setSituationId(item.id)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                style={[
+                  styles.option,
+                  stackOptions && styles.optionStacked,
+                  active && styles.optionActive,
+                ]}
+              >
+                <Ionicons name={item.icon} size={22} color={active ? Colors.inverse : Colors.primary} />
+                <AppText
+                  variant="label"
+                  tone={active ? "inverse" : "primary"}
+                  align={stackOptions ? "left" : "center"}
                 >
-                  <Ionicons
-                    name={item.icon}
-                    size={22}
-                    color={active ? "#FFFFFF" : Palette.navy}
-                  />
-                  <Text style={[styles.optionText, active && styles.optionTextActive]}>
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                  {item.label}
+                </AppText>
+                {active && stackOptions && (
+                  <Ionicons name="checkmark" size={20} color={Colors.inverse} style={styles.optionCheck} />
+                )}
+              </Pressable>
+            );
+          })}
         </View>
+      </View>
 
-        <View style={styles.steps}>
-          <Text style={styles.intro}>{situation.intro}</Text>
-          {situation.steps.map(({ title, detail, action }, index) => (
-            <Card key={title} style={styles.stepCard}>
-              <View style={styles.stepHeader}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{index + 1}</Text>
-                </View>
-                <Text style={styles.stepTitle}>{title}</Text>
+      <View style={styles.steps}>
+        <AppText variant="bodyStrong" accessibilityLiveRegion="polite">
+          {situation.intro}
+        </AppText>
+        {situation.steps.map(({ title, detail, action }, index) => (
+          <Card key={title} style={styles.stepCard}>
+            <View style={styles.stepHeader}>
+              <View style={styles.stepNumber}>
+                <AppText variant="label" tone="critical">
+                  {index + 1}
+                </AppText>
               </View>
-              <Text style={styles.stepDetail}>{detail}</Text>
-              {action && (
-                <Pressable
-                  onPress={() => Linking.openURL(action.url)}
-                  accessibilityRole="link"
-                  style={({ pressed }) => [styles.stepAction, pressed && { opacity: 0.75 }]}
-                >
-                  <Ionicons name={action.icon} size={18} color={Palette.brand} />
-                  <Text style={styles.stepActionText}>{action.label}</Text>
-                </Pressable>
-              )}
-            </Card>
-          ))}
-        </View>
-
-        <View>
-          <SectionHeader icon="folder-open-outline" title="Keep these details ready" />
-          <Card>
-            <BulletList items={KEEP_READY} color={Palette.navy} />
+              <AppText variant="subheading" tone="ink" style={styles.flex} accessibilityRole="header">
+                {title}
+              </AppText>
+            </View>
+            <AppText>{detail}</AppText>
+            {action && (
+              <AppButton
+                label={action.label}
+                icon={action.icon}
+                variant="secondary"
+                compact
+                accessibilityHint={action.url.startsWith("tel:") ? "Starts a phone call" : "Opens the official website"}
+                onPress={() => openLink(action.url, action.label)}
+                style={styles.stepAction}
+              />
+            )}
           </Card>
-        </View>
+        ))}
+      </View>
 
-        <Card style={styles.warning}>
-          <View style={styles.warningHeader}>
-            <Ionicons name="warning-outline" size={22} color={Palette.warning} />
-            <Text style={styles.warningTitle}>Beware of &quot;recovery&quot; scams</Text>
-          </View>
-          <Text style={styles.warningText}>
-            After a fraud, people who promise to get your money back for a fee are usually
-            scammers too. Police, banks, and SEBI never charge you to file or follow up on a
-            complaint, and never ask for your OTP.
-          </Text>
+      <View>
+        <SectionHeader icon="folder-open-outline" title="Keep these details ready" />
+        <Card>
+          <BulletList items={KEEP_READY} color={Colors.primary} />
         </Card>
+      </View>
 
-        <Text style={styles.disclaimer}>
-          These steps are general safety guidance, not legal advice. Always use official phone
-          numbers and websites.
-        </Text>
-      </ScrollView>
-      <View style={{ height: insets.bottom }} />
-    </View>
+      <InlineAlert
+        tone="warning"
+        icon="warning-outline"
+        title="Beware of “recovery” scams"
+        message="After a fraud, people who promise to get your money back for a fee are usually scammers too. Police, banks, and SEBI never charge you to file or follow up on a complaint, and never ask for your OTP."
+      />
+
+      <AppText variant="caption" tone="muted" align="center">
+        These steps are general safety guidance, not legal advice. Always use official phone
+        numbers and websites.
+      </AppText>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  flex: {
     flex: 1,
-    backgroundColor: Palette.background,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 28,
-    gap: 24,
   },
   hero: {
-    backgroundColor: Palette.danger,
+    backgroundColor: Colors.critical,
     borderRadius: Radius.xl,
-    padding: 20,
-    gap: 12,
+    padding: Space.xl,
+    gap: Space.md,
   },
   heroTop: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  heroEyebrow: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-  },
-  heroTitle: {
-    fontSize: 23,
-    lineHeight: 30,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    gap: Space.sm,
   },
   heroText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#FEE2E2",
-    marginBottom: 4,
+    marginBottom: Space.xs,
   },
   selector: {
     flexDirection: "row",
-    gap: 8,
+    gap: Space.sm,
+  },
+  selectorStacked: {
+    flexDirection: "column",
   },
   option: {
     flex: 1,
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
+    gap: Space.xs + 2,
+    minHeight: Layout.minTouch,
+    paddingVertical: Space.md + 2,
+    paddingHorizontal: Space.xs + 2,
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Palette.border,
-    backgroundColor: Palette.surface,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  optionStacked: {
+    flexDirection: "row",
+    paddingHorizontal: Space.lg,
+    gap: Space.md,
   },
   optionActive: {
-    backgroundColor: Palette.navy,
-    borderColor: Palette.navy,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  optionText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: Palette.navy,
-    textAlign: "center",
-  },
-  optionTextActive: {
-    color: "#FFFFFF",
+  optionCheck: {
+    marginLeft: "auto",
   },
   steps: {
-    gap: 12,
-  },
-  intro: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.text,
-    fontWeight: "600",
+    gap: Space.md,
   },
   stepCard: {
-    gap: 10,
+    gap: Space.sm + 2,
   },
   stepHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: Space.md,
   },
   stepNumber: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: Palette.dangerSoft,
+    backgroundColor: Colors.criticalSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepNumberText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: Palette.danger,
-  },
-  stepTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  stepDetail: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.text,
-  },
   stepAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
     alignSelf: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: Radius.md,
-    backgroundColor: Palette.brandSoft,
-  },
-  stepActionText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Palette.brand,
-  },
-  warning: {
-    gap: 8,
-    backgroundColor: Palette.warningSoft,
-  },
-  warningHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  warningTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: Palette.warning,
-  },
-  warningText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: Palette.text,
-  },
-  disclaimer: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: Palette.subtle,
-    textAlign: "center",
   },
 });

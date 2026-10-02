@@ -43,7 +43,8 @@
         }
       ],
       "./plugins/with-quick-capture",
-      "./plugins/with-android-build-memory"
+      "./plugins/with-android-build-memory",
+      "./plugins/with-font-scale-config"
     ],
     "experiments": {
       "typedRoutes": true,

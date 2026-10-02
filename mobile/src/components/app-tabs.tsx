@@ -2,14 +2,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { VectorIcon } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-import { Palette } from '@/constants/palette';
+import { Colors } from '@/constants/design';
 
 export default function AppTabs() {
   return (
     <NativeTabs
-      backgroundColor={Palette.surface}
-      indicatorColor={Palette.brandSoft}
-      labelStyle={{ selected: { color: Palette.navy } }}>
+      backgroundColor={Colors.surface}
+      indicatorColor={Colors.secondarySoft}
+      iconColor={{ default: Colors.muted, selected: Colors.secondary }}
+      labelStyle={{
+        default: { color: Colors.muted, fontSize: 12 },
+        selected: { color: Colors.primary, fontSize: 12, fontWeight: '700' },
+      }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

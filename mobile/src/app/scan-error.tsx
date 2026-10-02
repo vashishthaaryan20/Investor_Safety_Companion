@@ -1,15 +1,23 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import { useState, type ComponentProps } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { AccessibilityInfo, StyleSheet, View } from "react-native";
 
-import { AppButton, BulletList, Card, SectionHeader, StatusScreen } from "@/components/sangyan/ui";
-import { Palette } from "@/constants/palette";
+import { StatusScreen } from "@/components/sangyan/feedback";
+import {
+  AppButton,
+  AppText,
+  BulletList,
+  Card,
+  SectionHeader,
+  TextLink,
+  type IconName,
+} from "@/components/sangyan/ui";
+import { Colors, Radius, Space, Typography } from "@/constants/design";
 import { API_BASE_URL, type ApiErrorKind } from "@/services/api";
 import { useScan } from "@/state/scan-store";
 
 interface ErrorCopy {
-  icon: ComponentProps<typeof Ionicons>["name"];
+  icon: IconName;
   title: string;
   message: string;
   tips: string[];
@@ -72,25 +80,35 @@ export default function ScanErrorScreen() {
   const [showDetails, setShowDetails] = useState(false);
   const kind = error?.kind ?? "network";
   const copy = ERROR_COPY[kind];
+  const [retrying, setRetrying] = useState(false);
+
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility(`Check not completed. ${copy.title}.`);
+  }, [copy.title]);
+
+  const retry = () => {
+    if (retrying) return;
+    setRetrying(true);
+    router.replace("/analyzing");
+  };
 
   return (
     <StatusScreen
+      tone="critical"
       icon={copy.icon}
-      color={Palette.danger}
-      background={Palette.dangerSoft}
       eyebrow="Check not completed"
       title={copy.title}
       message={copy.message}
       actions={
         <>
-          <AppButton label="Try again" icon="refresh" onPress={() => router.replace("/analyzing")} />
+          <AppButton label="Try again" icon="refresh" onPress={retry} loading={retrying} />
           <AppButton
             label={draft.mode === "image" ? "Choose a different screenshot" : "Edit the message"}
             icon="create-outline"
             variant="secondary"
             onPress={() => router.dismissTo("/scan")}
           />
-          <AppButton label="Go home" variant="ghost" onPress={() => router.dismissTo("/")} />
+          <AppButton label="Go home" variant="tertiary" onPress={() => router.dismissTo("/")} />
         </>
       }
     >
@@ -100,17 +118,20 @@ export default function ScanErrorScreen() {
       </Card>
 
       <View style={styles.details}>
-        <Pressable onPress={() => setShowDetails((value) => !value)} hitSlop={8}>
-          <Text style={styles.detailsToggle}>
-            {showDetails ? "Hide technical details" : "Show technical details"}
-          </Text>
-        </Pressable>
+        <TextLink
+          label={showDetails ? "Hide technical details" : "Show technical details"}
+          trailingIcon={showDetails ? "chevron-up" : "chevron-down"}
+          tone="muted"
+          accessibilityState={{ expanded: showDetails }}
+          onPress={() => setShowDetails((value) => !value)}
+          style={styles.detailsToggle}
+        />
         {showDetails && (
-          <Text style={styles.detailsText} selectable>
+          <AppText variant="caption" tone="muted" style={styles.detailsText} selectable>
             Error type: {kind}
             {"\n"}Server: {API_BASE_URL}
             {error?.message ? `\nMessage: ${error.message}` : ""}
-          </Text>
+          </AppText>
         )}
       </View>
     </StatusScreen>
@@ -119,22 +140,15 @@ export default function ScanErrorScreen() {
 
 const styles = StyleSheet.create({
   details: {
-    alignItems: "center",
-    gap: 10,
+    gap: Space.sm,
   },
   detailsToggle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Palette.muted,
+    alignSelf: "center",
   },
   detailsText: {
-    alignSelf: "stretch",
-    fontSize: 12,
-    lineHeight: 18,
-    color: Palette.muted,
-    fontFamily: "monospace",
-    backgroundColor: "#EEF1F6",
-    borderRadius: 8,
-    padding: 12,
+    ...Typography.mono,
+    backgroundColor: Colors.surfaceMuted,
+    borderRadius: Radius.sm,
+    padding: Space.md,
   },
 });

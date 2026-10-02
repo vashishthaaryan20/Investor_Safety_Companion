@@ -2,17 +2,17 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { Colors, Radius, Space, ToneColors, Typography } from "@/constants/design";
 import {
   getSignalGuidance,
   isLinkSignal,
   type SafetyAction,
 } from "@/constants/guidance";
 import { getLearnTopic, type LearnTopicId } from "@/constants/learn-content";
-import { Palette, Radius } from "@/constants/palette";
 import { getCategoryIcon, getSeverityCopy } from "@/constants/risk";
 import type { AnalysisSignal } from "@/services/api";
 
-import { BulletList, Card } from "./ui";
+import { AppText, BulletList, Card, TextLink } from "./ui";
 
 export function RiskMeter({ score, color }: { score: number; color: string }) {
   const filled = Math.max(1, Math.min(10, Math.round(score)));
@@ -21,14 +21,16 @@ export function RiskMeter({ score, color }: { score: number; color: string }) {
     <View
       style={styles.meter}
       accessible
+      accessibilityRole="progressbar"
       accessibilityLabel={`Risk score ${filled} out of 10`}
+      accessibilityValue={{ min: 0, max: 10, now: filled }}
     >
       {Array.from({ length: 10 }, (_, index) => (
         <View
           key={index}
           style={[
             styles.meterSegment,
-            { backgroundColor: index < filled ? color : "rgba(15,23,42,0.08)" },
+            { backgroundColor: index < filled ? color : "rgba(15,23,42,0.1)" },
           ]}
         />
       ))}
@@ -57,23 +59,30 @@ export function SignalCard({
         <View style={[styles.signalIcon, { backgroundColor: severity.soft }]}>
           <Ionicons name={getCategoryIcon(signal.category)} size={20} color={severity.color} />
         </View>
-        <Text style={styles.signalTitle}>{signal.title}</Text>
-        <View style={[styles.chip, { backgroundColor: severity.soft }]}>
+        <AppText variant="subheading" tone="ink" style={styles.flex} accessibilityRole="header">
+          {signal.title}
+        </AppText>
+        <View
+          style={[styles.chip, { backgroundColor: severity.soft }]}
+          accessible
+          accessibilityLabel={`Severity: ${severity.label}`}
+        >
+          <Ionicons name={severity.icon} size={13} color={severity.color} />
           <Text style={[styles.chipText, { color: severity.color }]}>{severity.label}</Text>
         </View>
       </View>
-      <Text style={styles.signalDescription}>{signal.description}</Text>
+      <AppText>{signal.description}</AppText>
 
       {!!signal.evidence?.length && (
         <View style={styles.block}>
-          <Text style={styles.blockLabel}>
+          <AppText variant="overline" tone="muted">
             {isLink ? "Links that raised concern" : `What raised concern in your ${sourceLabel}`}
-          </Text>
+          </AppText>
           <View style={styles.evidenceRow}>
             {signal.evidence.map((phrase) =>
               isLink ? (
                 <View key={phrase} style={styles.urlChip}>
-                  <Ionicons name="link-outline" size={14} color={Palette.danger} />
+                  <Ionicons name="link-outline" size={14} color={Colors.critical} />
                   <Text style={styles.urlText} selectable>
                     {phrase}
                   </Text>
@@ -89,53 +98,54 @@ export function SignalCard({
       )}
 
       <View style={styles.actionBox}>
-        <Ionicons name="hand-right-outline" size={18} color={Palette.brand} />
+        <Ionicons name="hand-right-outline" size={18} color={Colors.secondary} />
         <View style={styles.flex}>
-          <Text style={styles.blockLabel}>What to do</Text>
-          <Text style={styles.actionText}>{guidance.action}</Text>
+          <AppText variant="overline" tone="brand">
+            What to do
+          </AppText>
+          <AppText variant="bodyStrong" tone="primary">
+            {guidance.action}
+          </AppText>
         </View>
       </View>
 
       {expanded && (
         <View style={styles.details}>
           <View style={styles.block}>
-            <Text style={styles.blockLabel}>Why it matters</Text>
-            <Text style={styles.signalDescription}>{guidance.whyItMatters}</Text>
+            <AppText variant="overline" tone="muted">
+              Why it matters
+            </AppText>
+            <AppText>{guidance.whyItMatters}</AppText>
           </View>
           <View style={styles.block}>
-            <Text style={styles.blockLabel}>Steps to stay safe</Text>
-            <BulletList items={guidance.steps} color={Palette.brand} />
+            <AppText variant="overline" tone="muted">
+              Steps to stay safe
+            </AppText>
+            <BulletList items={guidance.steps} />
           </View>
           {topic && (
             <Pressable
               onPress={() => onLearnMore(topic.id)}
-              accessibilityRole="link"
-              style={({ pressed }) => [styles.learnRow, pressed && { opacity: 0.7 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`Learn: ${topic.title}`}
+              style={({ pressed }) => [styles.learnRow, pressed && { backgroundColor: Colors.surfaceMuted }]}
             >
-              <Ionicons name="school-outline" size={18} color={Palette.brand} />
-              <Text style={styles.learnText}>Learn: {topic.title}</Text>
-              <Ionicons name="chevron-forward" size={16} color={Palette.brand} />
+              <Ionicons name="school-outline" size={18} color={Colors.secondary} />
+              <AppText variant="label" tone="brand" style={styles.flex}>
+                Learn: {topic.title}
+              </AppText>
+              <Ionicons name="chevron-forward" size={16} color={Colors.secondary} />
             </Pressable>
           )}
         </View>
       )}
 
-      <Pressable
-        onPress={() => setExpanded((value) => !value)}
-        hitSlop={8}
-        accessibilityRole="button"
+      <TextLink
+        label={expanded ? "Show less" : "Why it matters & what to do"}
+        trailingIcon={expanded ? "chevron-up" : "chevron-down"}
         accessibilityState={{ expanded }}
-        style={styles.toggle}
-      >
-        <Text style={styles.toggleText}>
-          {expanded ? "Show less" : "Why it matters & what to do"}
-        </Text>
-        <Ionicons
-          name={expanded ? "chevron-up" : "chevron-down"}
-          size={16}
-          color={Palette.brand}
-        />
-      </Pressable>
+        onPress={() => setExpanded((value) => !value)}
+      />
     </Card>
   );
 }
@@ -147,7 +157,11 @@ function escapeRegExp(value: string) {
 export function HighlightedText({ text, phrases }: { text: string; phrases: string[] }) {
   const usable = phrases.filter((phrase) => phrase.trim().length > 1);
   if (!usable.length) {
-    return <Text style={styles.sourceText}>{text}</Text>;
+    return (
+      <Text style={styles.sourceText} selectable>
+        {text}
+      </Text>
+    );
   }
 
   const pattern = new RegExp(`(${usable.map(escapeRegExp).join("|")})`, "gi");
@@ -188,6 +202,7 @@ export function Checklist({
             onPress={() => onToggle(index)}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: done }}
+            accessibilityLabel={item.detail ? `${item.title}. ${item.detail}` : item.title}
             style={({ pressed }) => [
               styles.checkRow,
               done && styles.checkRowDone,
@@ -197,11 +212,20 @@ export function Checklist({
             <Ionicons
               name={done ? "checkmark-circle" : "ellipse-outline"}
               size={26}
-              color={done ? Palette.success : Palette.subtle}
+              color={done ? Colors.success : Colors.subtle}
             />
             <View style={styles.flex}>
-              <Text style={[styles.checkText, done && styles.checkTextDone]}>{item.title}</Text>
-              {!!item.detail && <Text style={styles.checkDetail}>{item.detail}</Text>}
+              <AppText
+                tone={done ? "muted" : "default"}
+                style={done && styles.checkTextDone}
+              >
+                {item.title}
+              </AppText>
+              {!!item.detail && (
+                <AppText variant="caption" tone="muted">
+                  {item.detail}
+                </AppText>
+              )}
             </View>
           </Pressable>
         );
@@ -211,10 +235,12 @@ export function Checklist({
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   meter: {
     flexDirection: "row",
-    gap: 4,
-    marginTop: 14,
+    gap: Space.xs,
   },
   meterSegment: {
     flex: 1,
@@ -223,12 +249,12 @@ const styles = StyleSheet.create({
   },
   signalCard: {
     borderLeftWidth: 4,
-    gap: 10,
+    gap: Space.md,
   },
   signalHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: Space.sm + 2,
   },
   signalIcon: {
     width: 36,
@@ -237,155 +263,104 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  signalTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: Palette.ink,
-  },
   chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.xs,
+    paddingHorizontal: Space.sm + 2,
+    paddingVertical: Space.xs,
     borderRadius: Radius.pill,
   },
   chipText: {
-    fontSize: 12,
+    ...Typography.caption,
     fontWeight: "800",
-  },
-  signalDescription: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.text,
-  },
-  flex: {
-    flex: 1,
   },
   block: {
-    gap: 6,
-  },
-  blockLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: Palette.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
+    gap: Space.xs + 2,
   },
   evidenceRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
-    gap: 6,
+    gap: Space.xs + 2,
   },
   urlChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: Space.xs + 2,
     maxWidth: "100%",
-    backgroundColor: Palette.dangerSoft,
+    backgroundColor: Colors.criticalSoft,
     borderRadius: Radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: Space.sm,
+    paddingVertical: Space.xs,
   },
   urlText: {
+    ...Typography.mono,
     flexShrink: 1,
-    fontSize: 13,
-    color: Palette.danger,
+    color: Colors.critical,
     fontWeight: "600",
-    fontFamily: "monospace",
   },
   actionBox: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
-    padding: 12,
+    gap: Space.sm + 2,
+    padding: Space.md,
     borderRadius: Radius.md,
-    backgroundColor: Palette.brandSoft,
-  },
-  actionText: {
-    marginTop: 2,
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: "700",
-    color: Palette.navy,
+    backgroundColor: Colors.secondarySoft,
   },
   details: {
-    gap: 14,
-    paddingTop: 4,
+    gap: Space.md + 2,
+    paddingTop: Space.xs,
   },
   learnRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    gap: Space.sm,
+    minHeight: 48,
+    paddingHorizontal: Space.md,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Palette.border,
-  },
-  learnText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "700",
-    color: Palette.brand,
-  },
-  toggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    alignSelf: "flex-start",
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Palette.brand,
+    borderColor: Colors.border,
   },
   evidenceChip: {
-    backgroundColor: "#FEF9C3",
+    backgroundColor: ToneColors.caution.bg,
+    borderWidth: 1,
+    borderColor: ToneColors.caution.border,
     borderRadius: Radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: Space.sm,
+    paddingVertical: Space.xxs + 1,
   },
   evidenceText: {
-    fontSize: 13,
+    ...Typography.caption,
     color: "#854D0E",
     fontWeight: "600",
   },
   sourceText: {
-    fontSize: 15,
+    ...Typography.body,
     lineHeight: 24,
-    color: Palette.text,
+    color: Colors.text,
   },
   highlight: {
-    backgroundColor: Palette.highlight,
+    backgroundColor: Colors.highlight,
     fontWeight: "700",
-    color: Palette.ink,
+    color: Colors.ink,
   },
   checklist: {
-    gap: 8,
+    gap: Space.sm,
   },
   checkRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
-    padding: 12,
+    gap: Space.md,
+    padding: Space.md,
+    minHeight: 48,
     borderRadius: Radius.md,
-    backgroundColor: Palette.background,
+    backgroundColor: Colors.background,
   },
   checkRowDone: {
-    backgroundColor: Palette.successSoft,
-  },
-  checkText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.text,
-  },
-  checkDetail: {
-    marginTop: 2,
-    fontSize: 13,
-    lineHeight: 19,
-    color: Palette.muted,
+    backgroundColor: Colors.successSoft,
   },
   checkTextDone: {
-    color: Palette.muted,
+    textDecorationLine: "line-through",
   },
 });

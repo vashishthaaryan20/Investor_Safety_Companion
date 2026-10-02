@@ -1,21 +1,25 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRouter } from "expo-router";
-import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import { Image, Pressable, StyleSheet, TextInput, View } from "react-native";
 
-import { AppButton, Card } from "@/components/sangyan/ui";
-import { Palette, Radius } from "@/constants/palette";
-import { pickImage as pickImageFrom, type ImageSource } from "@/services/image-picker";
+import { PickResultNotice } from "@/components/sangyan/feedback";
+import { Screen } from "@/components/sangyan/screen";
+import {
+  AppButton,
+  AppText,
+  Card,
+  InfoNote,
+  OptionCard,
+  TextLink,
+  type IconName,
+} from "@/components/sangyan/ui";
+import { Colors, Layout, Radius, Space, Typography } from "@/constants/design";
+import {
+  pickImage as pickImageFrom,
+  type ImageSource,
+  type PickResult,
+} from "@/services/image-picker";
 import { useScan, type ScanMode } from "@/state/scan-store";
 
 const MIN_TEXT_LENGTH = 10;
@@ -39,8 +43,10 @@ const SAMPLE_MESSAGES = [
   },
 ];
 
+type PickNotice = Exclude<PickResult, { status: "picked" }> & { source: ImageSource };
+
 function ModeToggle({ mode, onChange }: { mode: ScanMode; onChange: (mode: ScanMode) => void }) {
-  const options: { value: ScanMode; label: string; icon: "image-outline" | "chatbox-ellipses-outline" }[] = [
+  const options: { value: ScanMode; label: string; icon: IconName }[] = [
     { value: "image", label: "Screenshot", icon: "image-outline" },
     { value: "text", label: "Message", icon: "chatbox-ellipses-outline" },
   ];
@@ -53,14 +59,15 @@ function ModeToggle({ mode, onChange }: { mode: ScanMode; onChange: (mode: ScanM
           <Pressable
             key={option.value}
             accessibilityRole="tab"
+            accessibilityLabel={`Check a ${option.label.toLowerCase()}`}
             accessibilityState={{ selected: active }}
             onPress={() => onChange(option.value)}
             style={[styles.toggleOption, active && styles.toggleOptionActive]}
           >
-            <Ionicons name={option.icon} size={18} color={active ? Palette.navy : Palette.muted} />
-            <Text style={[styles.toggleLabel, active && styles.toggleLabelActive]}>
+            <Ionicons name={option.icon} size={18} color={active ? Colors.primary : Colors.muted} />
+            <AppText variant="label" tone={active ? "primary" : "muted"}>
               {option.label}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}
@@ -70,328 +77,266 @@ function ModeToggle({ mode, onChange }: { mode: ScanMode; onChange: (mode: ScanM
 
 export default function ScanScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { draft, updateDraft } = useScan();
+  const [picking, setPicking] = useState<ImageSource | null>(null);
+  const [notice, setNotice] = useState<PickNotice | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      setSubmitting(false);
+    }, [])
+  );
 
   const pickImage = async (source: ImageSource) => {
+    if (picking) return;
+    setNotice(null);
+    setPicking(source);
     const picked = await pickImageFrom(source);
+    setPicking(null);
     if (picked.status === "picked") {
       updateDraft({
         imageUri: picked.image.uri,
         imageName: picked.image.name,
         imageType: picked.image.type,
+        captureSource: "scan",
       });
+    } else {
+      setNotice({ ...picked, source });
     }
   };
 
-  const canSubmit =
+  const textLength = draft.text.trim().length;
+  const canSubmit = draft.mode === "image" ? !!draft.imageUri : textLength >= MIN_TEXT_LENGTH;
+  const blockedReason =
     draft.mode === "image"
-      ? !!draft.imageUri
-      : draft.text.trim().length >= MIN_TEXT_LENGTH;
+      ? "Choose a screenshot to continue."
+      : `Type or paste at least ${MIN_TEXT_LENGTH} characters to continue.`;
+
+  const submit = () => {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    router.push("/analyzing");
+  };
+
+  const footer = (
+    <>
+      {!canSubmit && (
+        <AppText variant="caption" tone="muted" align="center">
+          {blockedReason}
+        </AppText>
+      )}
+      <AppButton
+        label="Check for scam signs"
+        icon="shield-checkmark-outline"
+        disabled={!canSubmit}
+        loading={submitting}
+        loadingLabel="Starting check…"
+        onPress={submit}
+      />
+    </>
+  );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={90}
-    >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.intro}>
+    <Screen keyboard footer={footer}>
+      <View style={styles.section}>
+        <AppText tone="muted">
           What would you like to check? We will look for common scam warning signs.
-        </Text>
-
-        <ModeToggle mode={draft.mode} onChange={(mode) => updateDraft({ mode })} />
-
-        {draft.mode === "image" ? (
-          draft.imageUri ? (
-            <Card style={styles.previewCard}>
-              <Image
-                source={{ uri: draft.imageUri }}
-                style={styles.previewImage}
-                accessibilityLabel="Selected screenshot"
-              />
-              <View style={styles.previewFooter}>
-                <Ionicons name="checkmark-circle" size={20} color={Palette.success} />
-                <Text style={styles.previewName} numberOfLines={1}>
-                  {draft.imageName}
-                </Text>
-              </View>
-              <View style={styles.previewActions}>
-                <AppButton
-                  label="Change"
-                  icon="swap-horizontal"
-                  variant="secondary"
-                  onPress={() => pickImage("library")}
-                  style={styles.flex}
-                />
-                <AppButton
-                  label="Remove"
-                  icon="trash-outline"
-                  variant="secondary"
-                  onPress={() => updateDraft({ imageUri: null })}
-                  style={styles.flex}
-                />
-              </View>
-            </Card>
-          ) : (
-            <View style={styles.pickArea}>
-              <Pressable
-                onPress={() => pickImage("library")}
-                accessibilityRole="button"
-                accessibilityLabel="Choose a screenshot from your gallery"
-                style={({ pressed }) => [styles.dropzone, pressed && { opacity: 0.8 }]}
-              >
-                <View style={styles.dropzoneIcon}>
-                  <Ionicons name="images-outline" size={34} color={Palette.brand} />
-                </View>
-                <Text style={styles.dropzoneTitle}>Choose a screenshot</Text>
-                <Text style={styles.dropzoneText}>
-                  From WhatsApp, Telegram, SMS, YouTube, or an ad
-                </Text>
-              </Pressable>
-              <AppButton
-                label="Take a photo instead"
-                icon="camera-outline"
-                variant="secondary"
-                onPress={() => pickImage("camera")}
-              />
-            </View>
-          )
-        ) : (
-          <View style={styles.textArea}>
-            <TextInput
-              style={styles.textInput}
-              multiline
-              value={draft.text}
-              onChangeText={(text) => updateDraft({ text })}
-              placeholder="Paste or type the message you received…"
-              placeholderTextColor={Palette.subtle}
-              accessibilityLabel="Message to check"
-            />
-            <View style={styles.textMeta}>
-              <Text style={styles.textHint}>
-                {draft.text.trim().length < MIN_TEXT_LENGTH
-                  ? "Add a little more text for a better check"
-                  : `${draft.text.trim().length} characters`}
-              </Text>
-              {!!draft.text && (
-                <Pressable onPress={() => updateDraft({ text: "" })} hitSlop={8}>
-                  <Text style={styles.clear}>Clear</Text>
-                </Pressable>
-              )}
-            </View>
-            <Text style={styles.samplesLabel}>Try an example</Text>
-            <View style={styles.samples}>
-              {SAMPLE_MESSAGES.map((sample) => (
-                <Pressable
-                  key={sample.label}
-                  onPress={() => updateDraft({ text: sample.text })}
-                  style={({ pressed }) => [styles.sampleChip, pressed && { opacity: 0.7 }]}
-                >
-                  <Text style={styles.sampleText}>{sample.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <View style={styles.privacy}>
-          <Ionicons name="lock-closed-outline" size={18} color={Palette.muted} />
-          <Text style={styles.privacyText}>
-            Your content is only used for this check. Hide bank details and OTPs before sharing a
-            screenshot.
-          </Text>
-        </View>
-      </ScrollView>
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
-        <AppButton
-          label="Check for scam signs"
-          icon="shield-checkmark-outline"
-          disabled={!canSubmit}
-          onPress={() => router.push("/analyzing")}
+        </AppText>
+        <ModeToggle
+          mode={draft.mode}
+          onChange={(mode) => {
+            setNotice(null);
+            updateDraft({ mode });
+          }}
         />
       </View>
-    </KeyboardAvoidingView>
+
+      {draft.mode === "image" ? (
+        draft.imageUri ? (
+          <Card style={styles.section}>
+            <Image
+              source={{ uri: draft.imageUri }}
+              style={styles.previewImage}
+              resizeMode="contain"
+              accessibilityLabel="Selected screenshot"
+            />
+            <View style={styles.previewFooter}>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+              <AppText variant="label" style={styles.flex} numberOfLines={1}>
+                Ready to check · {draft.imageName}
+              </AppText>
+            </View>
+            <View style={styles.row}>
+              <AppButton
+                label="Change"
+                icon="swap-horizontal"
+                variant="secondary"
+                compact
+                loading={picking === "library"}
+                disabled={!!picking}
+                onPress={() => pickImage("library")}
+                style={styles.flex}
+              />
+              <AppButton
+                label="Remove"
+                icon="trash-outline"
+                variant="secondary"
+                compact
+                disabled={!!picking}
+                onPress={() => updateDraft({ imageUri: null })}
+                style={styles.flex}
+              />
+            </View>
+          </Card>
+        ) : (
+          <View style={styles.section}>
+            <OptionCard
+              icon="images"
+              title="Choose a screenshot"
+              description="From WhatsApp, Telegram, SMS, YouTube, or an ad"
+              loading={picking === "library"}
+              disabled={!!picking}
+              onPress={() => pickImage("library")}
+            />
+            <OptionCard
+              icon="camera"
+              title="Take a photo"
+              description="Photograph a poster, ad, or another screen"
+              iconBackground={Colors.primary}
+              loading={picking === "camera"}
+              disabled={!!picking}
+              onPress={() => pickImage("camera")}
+            />
+          </View>
+        )
+      ) : (
+        <View style={styles.section}>
+          <AppText variant="label" tone="ink" nativeID="message-label">
+            Message to check
+          </AppText>
+          <TextInput
+            style={styles.textInput}
+            multiline
+            value={draft.text}
+            onChangeText={(text) => updateDraft({ text })}
+            placeholder="Paste or type the message you received…"
+            placeholderTextColor={Colors.subtle}
+            accessibilityLabel="Message to check"
+            accessibilityLabelledBy="message-label"
+          />
+          <View style={styles.textMeta}>
+            <AppText variant="caption" tone="muted" style={styles.flex}>
+              {textLength < MIN_TEXT_LENGTH
+                ? "Add a little more text for a better check"
+                : `${textLength} characters`}
+            </AppText>
+            {!!draft.text && (
+              <TextLink label="Clear" icon="close-circle-outline" onPress={() => updateDraft({ text: "" })} />
+            )}
+          </View>
+          <AppText variant="overline" tone="muted">
+            Try an example
+          </AppText>
+          <View style={styles.samples}>
+            {SAMPLE_MESSAGES.map((sample) => (
+              <Pressable
+                key={sample.label}
+                onPress={() => updateDraft({ text: sample.text })}
+                accessibilityRole="button"
+                accessibilityLabel={`Use example: ${sample.label}`}
+                style={({ pressed }) => [styles.sampleChip, pressed && { backgroundColor: Colors.surfaceMuted }]}
+              >
+                <AppText variant="label" tone="primary">
+                  {sample.label}
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {notice && <PickResultNotice result={notice} onRetry={pickImage} />}
+
+      <InfoNote>
+        Your content is only used for this check. Hide bank details and OTPs before sharing a
+        screenshot.
+      </InfoNote>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Palette.background,
+  section: {
+    gap: Space.md,
   },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    gap: 18,
+  row: {
+    flexDirection: "row",
+    gap: Space.sm,
   },
   flex: {
     flex: 1,
   },
-  intro: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.muted,
-  },
   toggle: {
     flexDirection: "row",
-    backgroundColor: "#E8ECF3",
+    backgroundColor: Colors.surfaceMuted,
     borderRadius: Radius.md,
-    padding: 4,
+    padding: Space.xs,
   },
   toggleOption: {
     flex: 1,
+    minHeight: Layout.minTouch,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
+    gap: Space.sm,
     borderRadius: Radius.sm,
   },
   toggleOptionActive: {
-    backgroundColor: Palette.surface,
-  },
-  toggleLabel: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: Palette.muted,
-  },
-  toggleLabelActive: {
-    color: Palette.navy,
-  },
-  pickArea: {
-    gap: 12,
-  },
-  dropzone: {
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#BFDBFE",
-    backgroundColor: Palette.brandSoft,
-    borderRadius: Radius.lg,
-    paddingVertical: 38,
-    paddingHorizontal: 20,
-    alignItems: "center",
-    gap: 8,
-  },
-  dropzoneIcon: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: Palette.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  dropzoneTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: Palette.navy,
-  },
-  dropzoneText: {
-    fontSize: 14,
-    color: Palette.muted,
-    textAlign: "center",
-  },
-  previewCard: {
-    gap: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   previewImage: {
     width: "100%",
     height: 320,
-    resizeMode: "contain",
     borderRadius: Radius.md,
-    backgroundColor: Palette.background,
+    backgroundColor: Colors.background,
   },
   previewFooter: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  previewName: {
-    flex: 1,
-    fontSize: 14,
-    color: Palette.text,
-    fontWeight: "600",
-  },
-  previewActions: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  textArea: {
-    gap: 10,
+    gap: Space.sm,
   },
   textInput: {
+    ...Typography.body,
+    fontSize: 16,
     minHeight: 180,
-    backgroundColor: Palette.surface,
+    backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1.5,
-    borderColor: Palette.border,
-    padding: 16,
-    fontSize: 16,
-    lineHeight: 23,
-    color: Palette.ink,
+    borderColor: Colors.borderStrong,
+    padding: Space.lg,
+    color: Colors.ink,
     textAlignVertical: "top",
   },
   textMeta: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-  },
-  textHint: {
-    fontSize: 13,
-    color: Palette.muted,
-  },
-  clear: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Palette.brand,
-  },
-  samplesLabel: {
-    marginTop: 6,
-    fontSize: 13,
-    fontWeight: "800",
-    color: Palette.muted,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    gap: Space.sm,
   },
   samples: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: Space.sm,
   },
   sampleChip: {
-    backgroundColor: Palette.surface,
+    minHeight: 44,
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Palette.border,
+    borderColor: Colors.border,
     borderRadius: Radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  sampleText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Palette.navy,
-  },
-  privacy: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "flex-start",
-  },
-  privacyText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
-    color: Palette.muted,
-  },
-  footer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    backgroundColor: Palette.background,
-    borderTopWidth: 1,
-    borderTopColor: Palette.border,
+    paddingHorizontal: Space.lg,
   },
 });

@@ -1,5 +1,4 @@
 import * as ImagePicker from "expo-image-picker";
-import { Alert, Linking } from "react-native";
 
 export type ImageSource = "library" | "camera";
 
@@ -9,10 +8,14 @@ export interface PickedImage {
   type: string;
 }
 
+/**
+ * `denied.canAskAgain` is false once Android stops showing the permission prompt;
+ * the only recovery path then is the system Settings screen.
+ */
 export type PickResult =
   | { status: "picked"; image: PickedImage }
   | { status: "cancelled" }
-  | { status: "denied" }
+  | { status: "denied"; canAskAgain: boolean }
   | { status: "error" };
 
 const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
@@ -29,31 +32,14 @@ function toPickedImage(asset: ImagePicker.ImagePickerAsset): PickedImage {
   };
 }
 
-async function ensureCameraPermission(): Promise<boolean> {
-  const permission = await ImagePicker.requestCameraPermissionsAsync();
-  if (permission.granted) {
-    return true;
-  }
-  Alert.alert(
-    "Camera permission needed",
-    permission.canAskAgain
-      ? "Allow camera access to take a photo, or choose a screenshot from your gallery instead."
-      : "Camera access is turned off for SANGYAN Shield. Turn it on in Settings, or choose a screenshot from your gallery instead.",
-    permission.canAskAgain
-      ? [{ text: "OK" }]
-      : [
-          { text: "Not now", style: "cancel" },
-          { text: "Open Settings", onPress: () => Linking.openSettings() },
-        ]
-  );
-  return false;
-}
-
 /** The gallery uses the system photo picker, which needs no storage permission. */
 export async function pickImage(source: ImageSource): Promise<PickResult> {
   try {
-    if (source === "camera" && !(await ensureCameraPermission())) {
-      return { status: "denied" };
+    if (source === "camera") {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        return { status: "denied", canAskAgain: permission.canAskAgain };
+      }
     }
     const picked =
       source === "camera"
@@ -66,7 +52,6 @@ export async function pickImage(source: ImageSource): Promise<PickResult> {
     return { status: "picked", image: toPickedImage(picked.assets[0]) };
   } catch (error) {
     console.error("Image selection failed:", error);
-    Alert.alert("Couldn't open image", "Please try again or choose a different screenshot.");
     return { status: "error" };
   }
 }

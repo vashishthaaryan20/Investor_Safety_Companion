@@ -3,7 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { Palette } from '@/constants/palette';
+import { Colors } from '@/constants/design';
 import { ScanProvider } from '@/state/scan-store';
 
 SplashScreen.preventAutoHideAsync();
@@ -13,25 +13,40 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: Colors.secondary,
+    background: Colors.background,
+    card: Colors.background,
+    text: Colors.ink,
+    border: Colors.border,
+    notification: Colors.critical,
+  },
+};
+
 export default function RootLayout() {
   return (
-    <ThemeProvider value={DefaultTheme}>
+    <ThemeProvider value={theme}>
       <ScanProvider>
         <StatusBar style="dark" />
         <AnimatedSplashOverlay />
         <Stack
           screenOptions={{
-            headerStyle: { backgroundColor: Palette.background },
+            headerStyle: { backgroundColor: Colors.background },
             headerShadowVisible: false,
-            headerTintColor: Palette.navy,
-            headerTitleStyle: { fontWeight: '700' },
-            contentStyle: { backgroundColor: Palette.background },
+            headerTintColor: Colors.primary,
+            headerTitleStyle: { fontWeight: '800', fontSize: 18, color: Colors.ink },
+            headerBackButtonDisplayMode: 'minimal',
+            contentStyle: { backgroundColor: Colors.background },
           }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="scan" options={{ title: 'New check' }} />
           <Stack.Screen
             name="analyzing"
             options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
+            dangerouslySingular={() => 'analyzing'}
           />
           <Stack.Screen
             name="result"
@@ -46,6 +61,7 @@ export default function RootLayout() {
             options={{ title: 'Quick Capture', animation: 'slide_from_bottom' }}
             dangerouslySingular={() => 'quick-capture'}
           />
+          <Stack.Screen name="scam-check" options={{ headerShown: false }} />
         </Stack>
       </ScanProvider>
     </ThemeProvider>

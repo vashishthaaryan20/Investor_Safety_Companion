@@ -1,11 +1,13 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppButton } from "@/components/sangyan/ui";
-import { Palette } from "@/constants/palette";
+import { InlineAlert, ProgressList } from "@/components/sangyan/feedback";
+import { contentWidth } from "@/components/sangyan/screen";
+import { AppButton, AppText } from "@/components/sangyan/ui";
+import { Colors, Layout, Space } from "@/constants/design";
 import { isInconclusive } from "@/constants/risk";
 import {
   sendScreenshotForAnalysis,
@@ -28,6 +30,7 @@ const TEXT_STEPS = [
 ];
 
 const STEP_INTERVAL_MS = 1800;
+const SLOW_NOTICE_MS = 12000;
 // Keeps instant replies from flashing the screen.
 const MIN_VISIBLE_MS = 1500;
 
@@ -39,7 +42,13 @@ export default function AnalyzingScreen() {
   const { draft, completeScan, failScan } = useScan();
   const steps = draft.mode === "image" ? IMAGE_STEPS : TEXT_STEPS;
   const [step, setStep] = useState(0);
+  const [slow, setSlow] = useState(false);
   const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), SLOW_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -125,53 +134,55 @@ export default function AnalyzingScreen() {
   const ringOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] });
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 20 }]}>
-      <View style={styles.center}>
-        <View style={styles.shieldWrap}>
-          <Animated.View
-            style={[styles.ring, { transform: [{ scale: ringScale }], opacity: ringOpacity }]}
-          />
-          <View style={styles.shield}>
-            <Ionicons name="shield-half-outline" size={56} color="#FFFFFF" />
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + Space.xxxl * 1.5 }]}
+      >
+        <View style={styles.center}>
+          <View
+            style={styles.shieldWrap}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <Animated.View
+              style={[styles.ring, { transform: [{ scale: ringScale }], opacity: ringOpacity }]}
+            />
+            <View style={styles.shield}>
+              <Ionicons name="shield-half-outline" size={56} color={Colors.inverse} />
+            </View>
           </View>
+
+          <AppText variant="title" align="center">
+            Checking for scam signs…
+          </AppText>
+          <AppText tone="muted" align="center">
+            {draft.mode === "image"
+              ? "This can take up to 30 seconds for the first screenshot."
+              : "This takes just a moment."}
+          </AppText>
         </View>
 
-        <Text style={styles.title} accessibilityRole="header">
-          Checking for scam signs…
-        </Text>
-        <Text style={styles.subtitle}>
-          {draft.mode === "image"
-            ? "This can take up to 30 seconds for the first screenshot."
-            : "This takes just a moment."}
-        </Text>
+        <ProgressList steps={steps} current={step} />
 
-        <View style={styles.steps} accessibilityLiveRegion="polite">
-          {steps.map((label, index) => {
-            const done = index < step;
-            const current = index === step;
-            return (
-              <View key={label} style={styles.stepRow}>
-                <Ionicons
-                  name={done ? "checkmark-circle" : current ? "ellipse" : "ellipse-outline"}
-                  size={22}
-                  color={done ? Palette.success : current ? Palette.brand : Palette.subtle}
-                />
-                <Text
-                  style={[
-                    styles.stepLabel,
-                    done && styles.stepDone,
-                    current && styles.stepCurrent,
-                  ]}
-                >
-                  {label}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        {slow && (
+          <InlineAlert
+            tone="info"
+            icon="hourglass-outline"
+            title="Taking longer than usual"
+            message="Still working. A slow connection or the first check after starting the server can take a little longer."
+          />
+        )}
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Space.lg }]}>
+        <AppButton
+          label="Cancel check"
+          variant="secondary"
+          onPress={() => router.back()}
+          accessibilityHint="Stops the check. Nothing is saved."
+          style={contentWidth}
+        />
       </View>
-
-      <AppButton label="Cancel" variant="secondary" onPress={() => router.back()} />
     </View>
   );
 }
@@ -179,71 +190,42 @@ export default function AnalyzingScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Palette.background,
-    paddingHorizontal: 24,
-    justifyContent: "space-between",
+    backgroundColor: Colors.background,
+  },
+  content: {
+    ...contentWidth,
+    paddingHorizontal: Layout.screenPadding,
+    paddingBottom: Space.xxl,
+    gap: Space.xxl,
   },
   center: {
     alignItems: "center",
+    gap: Space.sm,
   },
   shieldWrap: {
     width: 150,
     height: 150,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 28,
+    marginBottom: Space.lg,
   },
   ring: {
     position: "absolute",
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: Palette.brand,
+    backgroundColor: Colors.secondary,
   },
   shield: {
     width: 112,
     height: 112,
     borderRadius: 56,
-    backgroundColor: Palette.brand,
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: Palette.ink,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 15,
-    color: Palette.muted,
-    textAlign: "center",
-    marginTop: 8,
-    lineHeight: 22,
-  },
-  steps: {
-    marginTop: 36,
-    alignSelf: "stretch",
-    gap: 16,
-    backgroundColor: Palette.surface,
-    borderRadius: 16,
-    padding: 20,
-  },
-  stepRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  stepLabel: {
-    fontSize: 16,
-    color: Palette.subtle,
-    fontWeight: "600",
-  },
-  stepDone: {
-    color: Palette.muted,
-  },
-  stepCurrent: {
-    color: Palette.ink,
-    fontWeight: "800",
+  footer: {
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: Space.md,
   },
 });

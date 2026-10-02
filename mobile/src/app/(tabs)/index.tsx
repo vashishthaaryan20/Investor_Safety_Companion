@@ -2,14 +2,22 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 
+import { EmergencyBanner, EmptyState } from "@/components/sangyan/feedback";
 import { HistoryRow } from "@/components/sangyan/history-row";
-import { AppButton, Card, SectionHeader } from "@/components/sangyan/ui";
-import { Palette, Radius } from "@/constants/palette";
+import { Screen } from "@/components/sangyan/screen";
+import {
+  AppButton,
+  AppText,
+  Card,
+  Divider,
+  IconBadge,
+  SectionHeader,
+  TextLink,
+} from "@/components/sangyan/ui";
+import { Colors, Layout, Radius, Space } from "@/constants/design";
 import { isInconclusive } from "@/constants/risk";
-import { BottomTabInset } from "@/constants/theme";
 import { useScan, type ScanMode, type ScanRecord } from "@/state/scan-store";
 
 const RECENT_LIMIT = 3;
@@ -64,60 +72,48 @@ function QuickCaptureCard({ onOpen }: { onOpen: () => void }) {
   const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
   return (
-    <Card style={styles.quickCard}>
-      <View style={styles.quickHeader}>
-        <View style={styles.quickIcon}>
-          <Ionicons name="flash" size={22} color={Palette.brand} />
-        </View>
+    <Card style={styles.cardGap}>
+      <View style={styles.rowTop}>
+        <IconBadge icon="flash" color={Colors.secondary} background={Colors.secondarySoft} size={44} />
         <View style={styles.flex}>
-          <Text style={styles.quickTitle}>Quick Capture</Text>
-          <Text style={styles.quickText}>
+          <AppText variant="subheading" tone="ink" accessibilityRole="header">
+            Quick Capture
+          </AppText>
+          <AppText variant="caption" tone="muted">
             {Platform.OS === "android"
               ? "Check a screenshot straight from Quick Settings or by long-pressing the app icon."
               : "Pick a screenshot and check it in two taps."}
-          </Text>
+          </AppText>
         </View>
       </View>
-      <View style={styles.quickActions}>
-        <AppButton
-          label="Open Quick Capture"
-          icon="flash-outline"
-          variant="secondary"
-          onPress={onOpen}
-          style={styles.flex}
-        />
-      </View>
+      <AppButton label="Open Quick Capture" icon="flash-outline" variant="secondary" onPress={onOpen} />
       {Platform.OS === "android" && (
         <>
-          <Pressable
-            onPress={() => setShowSetup((value) => !value)}
-            hitSlop={8}
-            accessibilityRole="button"
+          <TextLink
+            label={showSetup ? "Hide setup" : "Add the Quick Settings tile"}
+            trailingIcon={showSetup ? "chevron-up" : "chevron-down"}
             accessibilityState={{ expanded: showSetup }}
-            style={styles.quickToggle}
-          >
-            <Text style={styles.seeAll}>
-              {showSetup ? "Hide setup" : "Add the Quick Settings tile"}
-            </Text>
-            <Ionicons
-              name={showSetup ? "chevron-up" : "chevron-down"}
-              size={16}
-              color={Palette.brand}
-            />
-          </Pressable>
+            onPress={() => setShowSetup((value) => !value)}
+          />
           {showSetup && (
-            <View style={styles.quickSetup}>
+            <View style={styles.setup}>
               {TILE_STEPS.map((step, index) => (
-                <View key={step} style={styles.quickStep}>
-                  <Text style={styles.quickStepNumber}>{index + 1}</Text>
-                  <Text style={styles.quickStepText}>{step}</Text>
+                <View key={step} style={styles.rowTop}>
+                  <View style={styles.stepNumber}>
+                    <AppText variant="caption" tone="brand" style={styles.bold}>
+                      {index + 1}
+                    </AppText>
+                  </View>
+                  <AppText variant="body" style={styles.flex}>
+                    {step}
+                  </AppText>
                 </View>
               ))}
-              <Text style={styles.quickNote}>
+              <AppText variant="caption" tone="muted">
                 {inExpoGo
                   ? "The tile and app shortcuts appear only in the installed SANGYAN Shield app, not in Expo Go."
                   : "You can also long-press the SANGYAN Shield icon and choose “Scan screenshot”."}
-              </Text>
+              </AppText>
             </View>
           )}
         </>
@@ -128,9 +124,12 @@ function QuickCaptureCard({ onOpen }: { onOpen: () => void }) {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const { width, fontScale } = useWindowDimensions();
   const { history, resetDraft, showResult } = useScan();
   const recent = history.slice(0, RECENT_LIMIT);
+  // Three side-by-side step cards get cramped on narrow phones or with large text.
+  const stackSteps = width < 380 || fontScale > 1.2;
+  const signWidth = Math.round(180 * Math.min(Math.max(fontScale, 1), 1.5));
 
   const startScan = (mode: ScanMode) => {
     resetDraft(mode);
@@ -143,38 +142,38 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + 16, paddingBottom: insets.bottom + BottomTabInset + 24 },
-      ]}
-    >
+    <Screen tabs safeTop>
       <View style={styles.brandRow}>
-        <View style={styles.logo}>
-          <Ionicons name="shield-checkmark" size={22} color="#FFFFFF" />
+        <View style={styles.logo} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Ionicons name="shield-checkmark" size={22} color={Colors.inverse} />
         </View>
-        <View>
-          <Text style={styles.brandName}>SANGYAN Shield</Text>
-          <Text style={styles.brandTagline}>Check before you trust. Pause before you pay.</Text>
+        <View style={styles.flex}>
+          <AppText variant="heading" accessibilityRole="header">
+            SANGYAN Shield
+          </AppText>
+          <AppText variant="caption" tone="muted">
+            Check before you trust. Pause before you pay.
+          </AppText>
         </View>
       </View>
 
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Got a suspicious investment message?</Text>
-        <Text style={styles.heroText}>
+        <AppText variant="title" tone="inverse">
+          Got a suspicious investment message?
+        </AppText>
+        <AppText tone="inverseMuted" style={styles.heroText}>
           Check it for common scam warning signs in a few seconds. Free, private, and no stock tips.
-        </Text>
+        </AppText>
         <AppButton
           label="Scan a screenshot"
           icon="scan-outline"
+          variant="inverse"
           onPress={() => startScan("image")}
-          style={styles.heroPrimary}
         />
         <AppButton
           label="Paste a message"
           icon="chatbox-ellipses-outline"
-          variant="secondary"
+          variant="inverseSecondary"
           onPress={() => startScan("text")}
         />
       </View>
@@ -183,67 +182,68 @@ export default function HomeScreen() {
 
       <View>
         <SectionHeader title="How it works" />
-        <View style={styles.steps}>
+        <View style={[styles.steps, stackSteps && styles.stepsStacked]}>
           {HOW_IT_WORKS.map((step, index) => (
-            <Card key={step.text} style={styles.step}>
+            <Card
+              key={step.text}
+              style={[styles.step, stackSteps && styles.stepStacked]}
+            >
               <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{index + 1}</Text>
+                <AppText variant="caption" tone="brand" style={styles.bold}>
+                  {index + 1}
+                </AppText>
               </View>
-              <Ionicons name={step.icon} size={24} color={Palette.brand} />
-              <Text style={styles.stepText}>{step.text}</Text>
+              <Ionicons name={step.icon} size={24} color={Colors.secondary} />
+              <AppText variant="label" style={stackSteps && styles.flex}>
+                {step.text}
+              </AppText>
             </Card>
           ))}
         </View>
       </View>
 
       <View>
-        <View style={styles.recentHeader}>
-          <SectionHeader
-            title="Recent checks"
-            subtitle={recent.length ? "Tap a check to see the full result." : undefined}
-          />
-          {history.length > 0 && (
-            <Pressable
-              onPress={() => router.navigate("/history")}
-              hitSlop={8}
-              accessibilityRole="link"
-            >
-              <Text style={styles.seeAll}>See all ({history.length})</Text>
-            </Pressable>
-          )}
-        </View>
+        <SectionHeader
+          title="Recent checks"
+          subtitle={recent.length ? "Tap a check to see the full result." : undefined}
+          action={
+            history.length > 0
+              ? { label: `See all (${history.length})`, onPress: () => router.navigate("/history") }
+              : undefined
+          }
+        />
         {recent.length ? (
           <Card style={styles.recentCard}>
             {recent.map((record, index) => (
               <View key={record.id}>
-                {index > 0 && <View style={styles.divider} />}
+                {index > 0 && <Divider />}
                 <HistoryRow record={record} onPress={() => openRecord(record)} />
               </View>
             ))}
           </Card>
         ) : (
-          <Card style={styles.emptyCard}>
-            <Ionicons name="time-outline" size={28} color={Palette.subtle} />
-            <Text style={styles.emptyText}>
-              No checks yet. Your results will be saved on this phone so you can open them again.
-            </Text>
+          <Card>
+            <EmptyState
+              icon="time-outline"
+              title="No checks yet"
+              message="Your results will be saved on this phone so you can open them again."
+              action={{ label: "Start your first check", icon: "scan-outline", onPress: () => startScan("image") }}
+            />
           </Card>
         )}
       </View>
 
       <View>
-        <View style={styles.recentHeader}>
-          <View style={styles.flex}>
-            <SectionHeader title="Common scam signs" subtitle="Tap a sign to learn how it works." />
-          </View>
-          <Pressable onPress={() => router.navigate("/learn")} hitSlop={8} accessibilityRole="link">
-            <Text style={styles.seeAll}>Learn more</Text>
-          </Pressable>
-        </View>
+        <SectionHeader
+          title="Common scam signs"
+          subtitle="Tap a sign to learn how it works."
+          action={{ label: "Learn more", onPress: () => router.navigate("/learn") }}
+        />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.signs}
+          style={styles.signsScroller}
         >
           {SCAM_SIGNS.map((sign) => (
             <Pressable
@@ -251,273 +251,117 @@ export default function HomeScreen() {
               onPress={() =>
                 router.push({ pathname: "/learn/[topic]", params: { topic: sign.topic } })
               }
-              accessibilityRole="link"
+              accessibilityRole="button"
+              accessibilityLabel={`${sign.title}. Example: ${sign.text}`}
+              accessibilityHint="Opens a lesson about this scam"
               style={({ pressed }) => pressed && { opacity: 0.8 }}
             >
-              <Card style={styles.signCard}>
-                <Ionicons name={sign.icon} size={24} color={Palette.danger} />
-                <Text style={styles.signTitle}>{sign.title}</Text>
-                <Text style={styles.signText}>{sign.text}</Text>
-                <Text style={styles.signLink}>Learn how it works</Text>
+              <Card style={[styles.signCard, { width: signWidth }]}>
+                <Ionicons name={sign.icon} size={24} color={Colors.critical} />
+                <AppText variant="bodyStrong" tone="ink">
+                  {sign.title}
+                </AppText>
+                <AppText variant="caption" tone="muted" style={styles.flex}>
+                  {sign.text}
+                </AppText>
+                <AppText variant="caption" tone="brand" style={styles.bold}>
+                  Learn how it works
+                </AppText>
               </Card>
             </Pressable>
           ))}
         </ScrollView>
       </View>
 
-      <Pressable
-        onPress={() => router.push("/emergency")}
-        accessibilityRole="button"
-        style={({ pressed }) => [styles.emergency, pressed && { opacity: 0.85 }]}
-      >
-        <Ionicons name="medkit-outline" size={24} color={Palette.danger} />
-        <View style={styles.flex}>
-          <Text style={styles.emergencyTitle}>Lost money or shared your OTP?</Text>
-          <Text style={styles.emergencyText}>Get step-by-step emergency help now.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={Palette.danger} />
-      </Pressable>
+      <EmergencyBanner onPress={() => router.push("/emergency")} />
 
-      <Text style={styles.footer}>
+      <AppText variant="caption" tone="muted" align="center">
         SANGYAN Shield gives safety information only. It never tells you to buy, sell, or hold any
         investment.
-      </Text>
-    </ScrollView>
+      </AppText>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  flex: {
     flex: 1,
-    backgroundColor: Palette.background,
   },
-  content: {
-    paddingHorizontal: 20,
-    gap: 26,
+  bold: {
+    fontWeight: "800",
+  },
+  cardGap: {
+    gap: Space.md,
+  },
+  rowTop: {
+    flexDirection: "row",
+    gap: Space.md,
+    alignItems: "flex-start",
   },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: Space.md,
   },
   logo: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: Palette.brand,
+    borderRadius: Radius.md + 2,
+    backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  brandName: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  brandTagline: {
-    fontSize: 13,
-    color: Palette.muted,
-    marginTop: 2,
-  },
   hero: {
-    backgroundColor: Palette.navy,
+    backgroundColor: Colors.primary,
     borderRadius: Radius.xl,
-    padding: 22,
-    gap: 12,
-  },
-  heroTitle: {
-    fontSize: 24,
-    lineHeight: 31,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    padding: Space.xl,
+    gap: Space.md,
   },
   heroText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#CBD5E1",
-    marginBottom: 6,
+    marginBottom: Space.xs,
   },
-  heroPrimary: {
-    marginTop: 4,
+  setup: {
+    gap: Space.md,
+    padding: Space.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.background,
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.secondarySoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
   steps: {
     flexDirection: "row",
-    gap: 10,
+    gap: Space.sm + 2,
+  },
+  stepsStacked: {
+    flexDirection: "column",
   },
   step: {
     flex: 1,
-    padding: 14,
-    gap: 10,
+    padding: Space.md + 2,
+    gap: Space.sm + 2,
   },
-  stepNumber: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Palette.brandSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepNumberText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: Palette.brand,
-  },
-  stepText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: Palette.text,
-    fontWeight: "600",
-  },
-  recentHeader: {
+  stepStacked: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  seeAll: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Palette.brand,
-    paddingTop: 2,
+    alignItems: "center",
   },
   recentCard: {
-    paddingVertical: 4,
+    paddingVertical: Space.xs,
   },
-  divider: {
-    height: 1,
-    backgroundColor: Palette.border,
-  },
-  emptyCard: {
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 24,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: Palette.muted,
-    textAlign: "center",
-    lineHeight: 20,
+  signsScroller: {
+    marginHorizontal: -Layout.screenPadding,
   },
   signs: {
-    gap: 12,
-    paddingRight: 20,
-    paddingBottom: 6,
+    gap: Space.md,
+    paddingHorizontal: Layout.screenPadding,
+    paddingBottom: Space.xs + 2,
   },
   signCard: {
-    width: 180,
-    gap: 8,
-  },
-  signTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  signText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: Palette.muted,
-  },
-  quickCard: {
-    gap: 14,
-  },
-  quickHeader: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "flex-start",
-  },
-  quickIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: Palette.brandSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  quickTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: Palette.ink,
-  },
-  quickText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Palette.muted,
-    marginTop: 2,
-  },
-  quickActions: {
-    flexDirection: "row",
-  },
-  quickToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    alignSelf: "flex-start",
-  },
-  quickSetup: {
-    gap: 10,
-    padding: 12,
-    borderRadius: Radius.md,
-    backgroundColor: Palette.background,
-  },
-  quickStep: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "flex-start",
-  },
-  quickStepNumber: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    textAlign: "center",
-    lineHeight: 22,
-    fontSize: 12,
-    fontWeight: "800",
-    color: Palette.brand,
-    backgroundColor: Palette.brandSoft,
-    overflow: "hidden",
-  },
-  quickStepText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 21,
-    color: Palette.text,
-  },
-  quickNote: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: Palette.muted,
-  },
-  signLink: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: Palette.brand,
-    marginTop: 2,
-  },
-  emergency: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 16,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: Palette.dangerSoft,
-  },
-  flex: {
-    flex: 1,
-  },
-  emergencyTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: Palette.danger,
-  },
-  emergencyText: {
-    fontSize: 13,
-    color: Palette.text,
-    marginTop: 2,
-  },
-  footer: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: Palette.subtle,
-    textAlign: "center",
+    gap: Space.sm,
   },
 });

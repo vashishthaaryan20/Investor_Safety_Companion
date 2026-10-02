@@ -1,32 +1,69 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Redirect, Stack, useRouter } from "expo-router";
-import { useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Redirect, Stack, useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { AccessibilityInfo, BackHandler, StyleSheet, Text, View } from "react-native";
 
+import { EmergencyBanner, InlineAlert } from "@/components/sangyan/feedback";
 import {
   Checklist,
   HighlightedText,
   RiskMeter,
   SignalCard,
 } from "@/components/sangyan/result-parts";
-import { AppButton, Card, IconBadge, SectionHeader } from "@/components/sangyan/ui";
+import { RiskBadge } from "@/components/sangyan/risk-badge";
+import { Screen } from "@/components/sangyan/screen";
+import {
+  AppButton,
+  AppText,
+  Card,
+  IconBadge,
+  IconButton,
+  ListRow,
+  SectionHeader,
+  TextLink,
+} from "@/components/sangyan/ui";
+import { Colors, Radius, Space, ToneColors, Typography } from "@/constants/design";
 import { buildReasonSentence, buildSafetyPlan, getRelatedTopics } from "@/constants/guidance";
 import { getLearnTopic, type LearnTopicId } from "@/constants/learn-content";
-import { Palette, Radius } from "@/constants/palette";
 import { getRiskCopy } from "@/constants/risk";
 import { useScan } from "@/state/scan-store";
+import { confirmAction } from "@/utils/confirm";
 import { formatDateTime } from "@/utils/format-date";
+import { openLink } from "@/utils/open-link";
 
 const PREVIEW_CHARS = 320;
 const URGENT_LEVELS = new Set(["HIGH_ATTENTION", "ELEVATED"]);
 
 export default function ResultScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { result, draft, resetDraft, activeRecord, resultSource, deleteScan } = useScan();
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [showFullText, setShowFullText] = useState(false);
+  const fromScan = resultSource !== "history";
+
+  const goHome = useCallback(() => router.dismissTo("/"), [router]);
+
+  // A fresh result sits on top of the scan flow; Back should leave it, not reopen "Analyzing".
+  useFocusEffect(
+    useCallback(() => {
+      if (!fromScan) return undefined;
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        goHome();
+        return true;
+      });
+      return () => subscription.remove();
+    }, [fromScan, goHome])
+  );
+
+  useEffect(() => {
+    if (!result || !fromScan) return;
+    const copy = getRiskCopy(result.risk.level);
+    AccessibilityInfo.announceForAccessibility(
+      `Check complete. ${copy.label}, score ${result.risk.score} out of 10. ${copy.headline}.`
+    );
+    // Announce once when the result first appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!result) {
     return <Redirect href="/" />;
@@ -70,536 +107,390 @@ export default function ResultScreen() {
     router.dismissTo("/scan");
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!activeRecord) return;
     const recordId = activeRecord.id;
-    Alert.alert("Delete this check?", "It will be removed from your history on this phone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          if (resultSource === "history") {
-            router.back();
-          } else {
-            router.dismissTo("/");
-          }
-          deleteScan(recordId);
-        },
-      },
-    ]);
+    const confirmed = await confirmAction({
+      title: "Delete this check?",
+      message: "It will be removed from your history on this phone.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
+    if (fromScan) {
+      goHome();
+    } else {
+      router.back();
+    }
+    deleteScan(recordId);
   };
 
+  const footer = (
+    <View style={styles.footerRow}>
+      <AppButton
+        label="Home"
+        icon="home-outline"
+        variant="secondary"
+        onPress={goHome}
+        style={styles.footerHome}
+      />
+      <AppButton label="New check" icon="refresh" onPress={scanAgain} style={styles.flex} />
+    </View>
+  );
+
   return (
-    <View style={styles.screen}>
+    <Screen footer={footer}>
       <Stack.Screen
         options={{
-          title: resultSource === "history" ? "Saved result" : "Your result",
-          headerBackVisible: resultSource === "history",
+          title: fromScan ? "Your result" : "Saved result",
+          headerBackVisible: !fromScan,
+          headerLeft: fromScan
+            ? () => <IconButton icon="close" label="Close result and go home" onPress={goHome} size={26} />
+            : undefined,
           headerRight: activeRecord
-            ? () => (
-                <Pressable
-                  onPress={confirmDelete}
-                  hitSlop={10}
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete this check"
-                >
-                  <Ionicons name="trash-outline" size={22} color={Palette.navy} />
-                </Pressable>
-              )
+            ? () => <IconButton icon="trash-outline" label="Delete this check" onPress={confirmDelete} />
             : undefined,
         }}
       />
-      <ScrollView contentContainerStyle={styles.content}>
+
+      <View style={styles.heroGroup}>
         {activeRecord && (
           <View style={styles.savedRow}>
             <Ionicons
-              name={resultSource === "history" ? "time-outline" : "bookmark-outline"}
+              name={fromScan ? "bookmark-outline" : "time-outline"}
               size={15}
-              color={Palette.muted}
+              color={Colors.muted}
             />
-            <Text style={styles.savedText}>
-              {resultSource === "history"
-                ? `Checked ${formatDateTime(activeRecord.createdAt)}`
-                : "Saved to your history on this phone"}
+            <AppText variant="caption" tone="muted" style={styles.flex}>
+              {fromScan
+                ? "Saved to your history on this phone"
+                : `Checked ${formatDateTime(activeRecord.createdAt)}`}
               {activeRecord.mode === "image" ? " · Screenshot" : " · Message"}
-            </Text>
+            </AppText>
           </View>
         )}
-        <View
-          style={[styles.hero, { backgroundColor: risk.soft, borderColor: risk.color }]}
-          accessible
-          accessibilityLabel={`${risk.label}. ${risk.headline}. ${risk.advice}`}
-        >
-          <View style={styles.heroTop}>
-            <IconBadge icon={risk.icon} color="#FFFFFF" background={risk.color} size={52} />
+
+        <View style={[styles.hero, { backgroundColor: risk.soft, borderColor: risk.border }]}>
+          <View
+            style={styles.heroTop}
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel={`${risk.label}, score ${result.risk.score} out of 10. ${risk.headline}.`}
+          >
+            <IconBadge icon={risk.icon} color={Colors.inverse} background={risk.color} size={52} />
             <View style={styles.heroTitles}>
-              <Text style={[styles.heroLabel, { color: risk.color }]}>{risk.label}</Text>
-              <Text style={styles.heroHeadline}>{risk.headline}</Text>
+              <RiskBadge risk={risk} score={result.risk.score} inverse />
+              <AppText variant="title">{risk.headline}</AppText>
             </View>
           </View>
-          <RiskMeter score={result.risk.score} color={risk.color} />
-          <View style={styles.meterLegend}>
-            <Text style={styles.meterLegendText}>Low</Text>
-            <Text style={styles.meterLegendText}>Risk score {result.risk.score}/10</Text>
-            <Text style={styles.meterLegendText}>High</Text>
+          <View style={styles.meterBlock}>
+            <RiskMeter score={result.risk.score} color={risk.color} />
+            <View style={styles.meterLegend} importantForAccessibility="no-hide-descendants">
+              <AppText variant="caption" tone="muted">
+                Low
+              </AppText>
+              <AppText variant="caption" tone="muted">
+                Risk score {result.risk.score}/10
+              </AppText>
+              <AppText variant="caption" tone="muted">
+                High
+              </AppText>
+            </View>
           </View>
-          <View style={[styles.adviceBox, { borderColor: risk.color }]}>
+          <View style={[styles.adviceBox, { borderColor: risk.border }]} accessible accessibilityRole="alert">
             <Ionicons name="hand-left-outline" size={20} color={risk.color} />
-            <Text style={[styles.adviceText, { color: risk.color }]}>{risk.advice}</Text>
+            <AppText variant="bodyStrong" style={[styles.flex, { color: risk.color }]}>
+              {risk.advice}
+            </AppText>
           </View>
           {!!reasonSentence && (
             <View style={styles.reasonBox}>
-              <Text style={styles.reasonLabel}>Why this rating</Text>
-              <Text style={styles.reasonText}>
-                We rated this <Text style={styles.reasonStrong}>“{risk.label}”</Text> because it{" "}
+              <AppText variant="overline" tone="muted">
+                Why this rating
+              </AppText>
+              <AppText tone="ink" style={styles.semibold}>
+                We rated this <Text style={styles.bold}>“{risk.label}”</Text> because it{" "}
                 {reasonSentence}.
-              </Text>
+              </AppText>
             </View>
           )}
-          <Text style={styles.explanation}>{result.explanation}</Text>
+          <AppText>{result.explanation}</AppText>
         </View>
 
-        {isUrgent && (
-          <Pressable
-            onPress={openEmergency}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.urgentStrip, pressed && { opacity: 0.85 }]}
-          >
-            <Ionicons name="medkit-outline" size={22} color={Palette.danger} />
-            <View style={styles.flex}>
-              <Text style={styles.urgentTitle}>Already paid or shared your OTP?</Text>
-              <Text style={styles.urgentText}>See what to do right now</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Palette.danger} />
-          </Pressable>
-        )}
+        {isUrgent && <EmergencyBanner onPress={openEmergency} />}
+      </View>
 
+      <View>
+        <SectionHeader
+          icon="flag-outline"
+          title={signalCount ? "Why this is risky" : "What we checked"}
+          subtitle={
+            signalCount
+              ? `${signalCount} warning sign${signalCount > 1 ? "s" : ""} in this ${fromImage ? "screenshot" : "message"}. Each card shows what we found and what to do.`
+              : undefined
+          }
+        />
+        {signalCount ? (
+          <View style={styles.signals}>
+            {result.signals.map((signal) => (
+              <SignalCard
+                key={signal.id ?? signal.title}
+                signal={signal}
+                sourceLabel={fromImage ? "screenshot" : "message"}
+                onLearnMore={openTopic}
+              />
+            ))}
+          </View>
+        ) : (
+          <InlineAlert
+            tone="success"
+            icon="checkmark-done-circle-outline"
+            title="No common scam signs found"
+            message="We didn't find any of the warning signs we check for. Scammers keep changing their tricks, so still verify before you pay or invest."
+          />
+        )}
+      </View>
+
+      {!!sourceText && (
         <View>
           <SectionHeader
-            icon="flag-outline"
-            title="Why this is risky"
+            icon="document-text-outline"
+            title="Where we found it"
             subtitle={
-              signalCount
-                ? `${signalCount} warning sign${signalCount > 1 ? "s" : ""} in this ${fromImage ? "screenshot" : "message"}. Each card shows what we found and what to do.`
-                : undefined
+              evidence.length
+                ? "The highlighted words are what triggered the warnings."
+                : `This is the text we ${fromImage ? "read from your screenshot" : "checked"}.`
             }
           />
-          {signalCount ? (
-            <View style={styles.signals}>
-              {result.signals.map((signal) => (
-                <SignalCard
-                  key={signal.id ?? signal.title}
-                  signal={signal}
-                  sourceLabel={fromImage ? "screenshot" : "message"}
-                  onLearnMore={openTopic}
-                />
-              ))}
-            </View>
-          ) : (
-            <Card style={styles.noSignals}>
-              <Ionicons name="checkmark-done-circle-outline" size={28} color={Palette.success} />
-              <Text style={styles.noSignalsText}>
-                We didn&apos;t find any of the common scam signs we check for. Scammers keep
-                changing their tricks, so still verify before you pay or invest.
-              </Text>
-            </Card>
-          )}
+          <Card style={styles.cardGap}>
+            <AppText variant="overline" tone="muted">
+              {fromImage ? "Text read from your screenshot" : "Your message"}
+            </AppText>
+            <HighlightedText text={visibleText} phrases={evidence} />
+            {isLong && (
+              <TextLink
+                label={showFullText ? "Show less" : "Show full text"}
+                trailingIcon={showFullText ? "chevron-up" : "chevron-down"}
+                accessibilityState={{ expanded: showFullText }}
+                onPress={() => setShowFullText((value) => !value)}
+              />
+            )}
+          </Card>
         </View>
+      )}
 
-        {!!sourceText && (
-          <View>
-            <SectionHeader
-              icon="document-text-outline"
-              title="Where we found it"
-              subtitle={
-                evidence.length
-                  ? "The highlighted words are what triggered the warnings."
-                  : `This is the text we ${fromImage ? "read from your screenshot" : "checked"}.`
-              }
-            />
-            <Card style={styles.evidenceCard}>
-              <Text style={styles.evidenceLabel}>
-                {fromImage ? "Text read from your screenshot" : "Your message"}
-              </Text>
-              <HighlightedText text={visibleText} phrases={evidence} />
-              {isLong && (
-                <Pressable onPress={() => setShowFullText((value) => !value)} hitSlop={8}>
-                  <Text style={styles.link}>{showFullText ? "Show less" : "Show full text"}</Text>
-                </Pressable>
-              )}
-            </Card>
+      {!!result.detected_urls.length && (
+        <Card variant="tinted" tone="critical" style={styles.cardGap}>
+          <View style={styles.linksHeader}>
+            <Ionicons name="link-outline" size={20} color={Colors.critical} />
+            <AppText variant="bodyStrong" tone="critical" style={styles.flex}>
+              Links found. Do not open them.
+            </AppText>
           </View>
-        )}
+          {result.detected_urls.map((url) => (
+            <Text key={url} style={styles.url} selectable>
+              {url}
+            </Text>
+          ))}
+        </Card>
+      )}
 
-        {!!result.detected_urls.length && (
-          <Card style={styles.linksCard}>
-            <View style={styles.linksHeader}>
-              <Ionicons name="link-outline" size={20} color={Palette.danger} />
-              <Text style={styles.linksTitle}>Links found. Do not open them.</Text>
+      <View>
+        <SectionHeader
+          icon="checkbox-outline"
+          title="What to do now"
+          subtitle={
+            signalCount
+              ? "Your safety plan for this message, most important first. Tick each step as you go."
+              : "Tick each step as you go."
+          }
+        />
+        <Card style={styles.cardGap}>
+          <View
+            style={styles.progressRow}
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel={`${checked.size} of ${safetyPlan.length} steps done`}
+            accessibilityValue={{ min: 0, max: safetyPlan.length, now: checked.size }}
+          >
+            <AppText variant="label" tone="muted">
+              {checked.size} of {safetyPlan.length} done
+            </AppText>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${(checked.size / Math.max(1, safetyPlan.length)) * 100}%` },
+                ]}
+              />
             </View>
-            {result.detected_urls.map((url) => (
-              <Text key={url} style={styles.url} selectable>
-                {url}
-              </Text>
+          </View>
+          <Checklist items={safetyPlan} checked={checked} onToggle={toggleStep} />
+        </Card>
+      </View>
+
+      <View style={styles.helpCard}>
+        <AppText variant="subheading" tone="inverse" accessibilityRole="header">
+          Already paid or shared your details?
+        </AppText>
+        <AppText variant="caption" tone="inverseMuted">
+          Act fast. The first few hours matter most. Call 1930, then follow our step-by-step
+          emergency guide to block payments and protect your accounts.
+        </AppText>
+        <View style={styles.helpActions}>
+          <AppButton
+            label="Call 1930"
+            icon="call-outline"
+            variant="inverse"
+            accessibilityHint="Calls the national cyber fraud helpline"
+            onPress={() => openLink("tel:1930", "Cyber fraud helpline")}
+            style={styles.helpButton}
+          />
+          <AppButton
+            label="Emergency steps"
+            icon="medkit-outline"
+            variant="inverseSecondary"
+            onPress={openEmergency}
+            style={styles.helpButton}
+          />
+        </View>
+      </View>
+
+      {relatedTopics.length > 0 && (
+        <View>
+          <SectionHeader
+            icon="school-outline"
+            title="Learn more"
+            subtitle="Understand the tricks behind these warning signs."
+          />
+          <Card style={styles.topicsCard}>
+            {relatedTopics.map((topic, index) => (
+              <ListRow
+                key={topic.id}
+                icon={topic.icon}
+                label={topic.title}
+                description={topic.summary}
+                divider={index > 0}
+                onPress={() => openTopic(topic.id)}
+              />
             ))}
           </Card>
-        )}
-
-        <View>
-          <SectionHeader
-            icon="checkbox-outline"
-            title="What to do now"
-            subtitle={
-              signalCount
-                ? "Your safety plan for this message, most important first. Tick each step as you go."
-                : "Tick each step as you go."
-            }
-          />
-          <Card style={styles.checklistCard}>
-            <View style={styles.progressRow}>
-              <Text style={styles.progressText}>
-                {checked.size} of {safetyPlan.length} done
-              </Text>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${(checked.size / Math.max(1, safetyPlan.length)) * 100}%` },
-                  ]}
-                />
-              </View>
-            </View>
-            <Checklist items={safetyPlan} checked={checked} onToggle={toggleStep} />
-          </Card>
         </View>
+      )}
 
-        <Card style={styles.helpCard}>
-          <Text style={styles.helpTitle}>Already paid or shared your details?</Text>
-          <Text style={styles.helpText}>
-            Act fast. The first few hours matter most. Call 1930, then follow our step-by-step
-            emergency guide to block payments and protect your accounts.
-          </Text>
-          <View style={styles.helpActions}>
-            <AppButton
-              label="Call 1930"
-              icon="call-outline"
-              onPress={() => Linking.openURL("tel:1930")}
-              style={styles.flex}
-            />
-            <AppButton
-              label="Emergency steps"
-              icon="medkit-outline"
-              variant="secondary"
-              onPress={openEmergency}
-              style={styles.flex}
-            />
-          </View>
-        </Card>
-
-        {relatedTopics.length > 0 && (
-          <View>
-            <SectionHeader
-              icon="school-outline"
-              title="Learn more"
-              subtitle="Understand the tricks behind these warning signs."
-            />
-            <Card style={styles.topicsCard}>
-              {relatedTopics.map((topic, index) => (
-                <Pressable
-                  key={topic.id}
-                  onPress={() => openTopic(topic.id)}
-                  accessibilityRole="link"
-                  style={({ pressed }) => [
-                    styles.topicRow,
-                    index > 0 && styles.topicDivider,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <Ionicons name={topic.icon} size={22} color={Palette.brand} />
-                  <View style={styles.flex}>
-                    <Text style={styles.topicTitle}>{topic.title}</Text>
-                    <Text style={styles.topicSummary}>{topic.summary}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={Palette.subtle} />
-                </Pressable>
-              ))}
-            </Card>
-          </View>
-        )}
-
-        <Text style={styles.disclaimer}>
-          This check looks for common warning signs and can make mistakes. It is not investment
-          advice and never tells you to buy, sell, or hold anything.
-        </Text>
-      </ScrollView>
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
-        <AppButton
-          label="Home"
-          icon="home-outline"
-          variant="secondary"
-          onPress={() => router.dismissTo("/")}
-          style={styles.footerHome}
-        />
-        <AppButton label="Scan again" icon="refresh" onPress={scanAgain} style={styles.flex} />
-      </View>
-    </View>
+      <AppText variant="caption" tone="muted" align="center">
+        This check looks for common warning signs and can make mistakes. It is not investment
+        advice and never tells you to buy, sell, or hold anything.
+      </AppText>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Palette.background,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 28,
-    gap: 26,
-  },
   flex: {
     flex: 1,
+  },
+  bold: {
+    fontWeight: "800",
+  },
+  semibold: {
+    fontWeight: "600",
+  },
+  cardGap: {
+    gap: Space.md,
+  },
+  heroGroup: {
+    gap: Space.md,
   },
   savedRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: -12,
-  },
-  savedText: {
-    fontSize: 13,
-    color: Palette.muted,
-    fontWeight: "600",
+    gap: Space.xs + 2,
   },
   hero: {
     borderRadius: Radius.xl,
     borderWidth: 1.5,
-    padding: 20,
+    padding: Space.xl,
+    gap: Space.lg,
   },
   heroTop: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: Space.md + 2,
   },
   heroTitles: {
     flex: 1,
+    gap: Space.xs + 2,
   },
-  heroLabel: {
-    fontSize: 14,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  heroHeadline: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: "800",
-    color: Palette.ink,
-    marginTop: 2,
+  meterBlock: {
+    gap: Space.xs + 2,
   },
   meterLegend: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 6,
-  },
-  meterLegendText: {
-    fontSize: 12,
-    color: Palette.muted,
-    fontWeight: "600",
   },
   adviceBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginTop: 16,
-    padding: 12,
+    gap: Space.sm + 2,
+    padding: Space.md,
     borderRadius: Radius.md,
     borderWidth: 1,
-    backgroundColor: "rgba(255,255,255,0.7)",
-  },
-  adviceText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "800",
+    backgroundColor: "rgba(255,255,255,0.75)",
   },
   reasonBox: {
-    marginTop: 14,
-    gap: 4,
-  },
-  reasonLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: Palette.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  reasonText: {
-    fontSize: 15,
-    lineHeight: 23,
-    color: Palette.ink,
-    fontWeight: "600",
-  },
-  reasonStrong: {
-    fontWeight: "800",
-  },
-  explanation: {
-    marginTop: 10,
-    fontSize: 15,
-    lineHeight: 23,
-    color: Palette.text,
-  },
-  urgentStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: Palette.dangerSoft,
-    marginTop: -10,
-  },
-  urgentTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: Palette.danger,
-  },
-  urgentText: {
-    fontSize: 13,
-    color: Palette.text,
-    marginTop: 2,
-  },
-  topicsCard: {
-    paddingVertical: 4,
-  },
-  topicRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-  },
-  topicDivider: {
-    borderTopWidth: 1,
-    borderTopColor: Palette.border,
-  },
-  topicTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: Palette.ink,
-  },
-  topicSummary: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: Palette.muted,
-    marginTop: 2,
+    gap: Space.xs,
   },
   signals: {
-    gap: 12,
-  },
-  noSignals: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "flex-start",
-  },
-  noSignalsText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 22,
-    color: Palette.text,
-  },
-  evidenceCard: {
-    gap: 10,
-  },
-  evidenceLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: Palette.muted,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  link: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Palette.brand,
-  },
-  linksCard: {
-    gap: 8,
-    backgroundColor: Palette.dangerSoft,
+    gap: Space.md,
   },
   linksHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  linksTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: Palette.danger,
+    gap: Space.sm,
   },
   url: {
-    fontSize: 14,
-    color: Palette.text,
-    fontFamily: "monospace",
-  },
-  checklistCard: {
-    gap: 14,
+    ...Typography.mono,
+    color: Colors.text,
   },
   progressRow: {
-    gap: 8,
-  },
-  progressText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: Palette.muted,
+    gap: Space.sm,
   },
   progressTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: Palette.background,
+    backgroundColor: Colors.surfaceMuted,
     overflow: "hidden",
   },
   progressFill: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: Palette.success,
+    backgroundColor: ToneColors.success.fg,
   },
   helpCard: {
-    gap: 10,
-    backgroundColor: Palette.navy,
-  },
-  helpTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  helpText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#CBD5E1",
+    gap: Space.sm + 2,
+    padding: Space.lg,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.primary,
   },
   helpActions: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
+    flexWrap: "wrap",
+    gap: Space.sm + 2,
+    marginTop: Space.xs,
   },
-  disclaimer: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: Palette.subtle,
-    textAlign: "center",
+  helpButton: {
+    flexGrow: 1,
+    flexBasis: 140,
   },
-  footer: {
+  topicsCard: {
+    paddingVertical: Space.xs,
+  },
+  footerRow: {
     flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    backgroundColor: Palette.background,
-    borderTopWidth: 1,
-    borderTopColor: Palette.border,
+    gap: Space.sm + 2,
   },
   footerHome: {
-    paddingHorizontal: 22,
+    paddingHorizontal: Space.xl,
   },
 });
