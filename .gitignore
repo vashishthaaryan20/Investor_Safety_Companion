@@ -1,9 +1,31 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pth
 
-venv
+# Environment variables
+.env
+.env/
+.env.*
+!.env.example
+
+# Node
+node_modules/
+
+# Build / generated files
 dist/
 build/
-*.log
-.DS_Store
 .cache/
-__pycache__/
-*.pth
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# Expo / generated
+.expo/
+mobile/android/
+mobile/ios/

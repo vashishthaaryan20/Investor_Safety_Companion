@@ -1,18 +1,69 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { Colors } from '@/constants/design';
+import { ScanProvider } from '@/state/scan-store';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+// Deep links (Quick Settings tile, app shortcuts) open on top of the tabs, so Back leads home.
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
+
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: Colors.secondary,
+    background: Colors.background,
+    card: Colors.background,
+    text: Colors.ink,
+    border: Colors.border,
+    notification: Colors.critical,
+  },
+};
+
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+    <ThemeProvider value={theme}>
+      <ScanProvider>
+        <StatusBar style="dark" />
+        <AnimatedSplashOverlay />
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: Colors.background },
+            headerShadowVisible: false,
+            headerTintColor: Colors.primary,
+            headerTitleStyle: { fontWeight: '800', fontSize: 18, color: Colors.ink },
+            headerBackButtonDisplayMode: 'minimal',
+            contentStyle: { backgroundColor: Colors.background },
+          }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="scan" options={{ title: 'New check' }} />
+          <Stack.Screen
+            name="analyzing"
+            options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
+            dangerouslySingular={() => 'analyzing'}
+          />
+          <Stack.Screen
+            name="result"
+            options={{ title: 'Your result', headerBackVisible: false, gestureEnabled: false }}
+          />
+          <Stack.Screen name="inconclusive" options={{ headerShown: false }} />
+          <Stack.Screen name="scan-error" options={{ headerShown: false }} />
+          <Stack.Screen name="learn/[topic]" options={{ title: 'Learn & Protect' }} />
+          <Stack.Screen name="emergency" options={{ title: 'Emergency help' }} />
+          <Stack.Screen
+            name="quick-capture"
+            options={{ title: 'Quick Capture', animation: 'slide_from_bottom' }}
+            dangerouslySingular={() => 'quick-capture'}
+          />
+          <Stack.Screen name="scam-check" options={{ headerShown: false }} />
+        </Stack>
+      </ScanProvider>
     </ThemeProvider>
   );
 }
