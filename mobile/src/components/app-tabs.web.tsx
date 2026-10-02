@@ -25,7 +25,7 @@ export default function AppTabs() {
             <TabButton>Home</TabButton>
           </TabTrigger>
           <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
+            <TabButton>Stay Safe</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -55,7 +55,7 @@ export function CustomTabList(props: TabListProps) {
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
         <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Starter
+          SANGYAN Shield
         </ThemedText>
 
         {props.children}

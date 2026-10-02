@@ -165,3 +165,49 @@ export async function sendScreenshotForAnalysis(
 
   return result;
 }
+
+export async function sendTextForAnalysis(
+  text: string
+): Promise<AnalysisResult> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/analyze-text`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  const responseText = await response.text();
+  let data: unknown;
+
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    throw new Error("The backend returned an unreadable response.");
+  }
+
+  if (!response.ok) {
+    const detail =
+      typeof data === "object" && data !== null && "detail" in data
+        ? String((data as { detail: unknown }).detail)
+        : `HTTP ${response.status}`;
+    throw new Error(`Text analysis failed: ${detail}`);
+  }
+
+  if (typeof data !== "object" || data === null) {
+    throw new Error("The backend response has an unexpected format.");
+  }
+
+  const result = data as AnalysisResult;
+
+  if (
+    !result.risk ||
+    !Array.isArray(result.signals) ||
+    !Array.isArray(result.verification)
+  ) {
+    throw new Error("The backend response is missing required analysis fields.");
+  }
+
+  return result;
+}

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   Image,
   StyleSheet,
@@ -15,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 
 import {
   sendScreenshotForAnalysis,
+  sendTextForAnalysis,
   AnalysisResult,
 } from "../services/api";
 
@@ -38,6 +40,8 @@ export default function HomeScreen() {
   // Analysis response
   const [analysisResult, setAnalysisResult] =
     useState<AnalysisResult | null>(null);
+
+  const [pastedText, setPastedText] = useState("");
 
 
   // ==========================================
@@ -182,6 +186,37 @@ export default function HomeScreen() {
   };
 
 
+  const handleAnalyzeText = async () => {
+    if (isAnalyzing) {
+      return;
+    }
+
+    const message = pastedText.trim();
+    if (!message) {
+      Alert.alert(
+        "No Message",
+        "Paste a WhatsApp, Telegram, or SMS investment message first."
+      );
+      return;
+    }
+
+    try {
+      setIsAnalyzing(true);
+      setAnalysisResult(null);
+      const result = await sendTextForAnalysis(message);
+      setAnalysisResult(result);
+    } catch (error) {
+      const detail =
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred.";
+      Alert.alert("Analysis Failed", detail);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+
   // ==========================================
   // USER INTERFACE
   // ==========================================
@@ -206,8 +241,8 @@ export default function HomeScreen() {
       </Text>
 
       <Text style={styles.description}>
-        Upload a financial screenshot to check
-        for potential investor-safety warning signs.
+        Upload a screenshot or paste a message to check
+        for investor-safety warning signs. No buy or sell tips.
       </Text>
 
 
@@ -293,6 +328,31 @@ export default function HomeScreen() {
 
         )}
 
+      </TouchableOpacity>
+
+
+      <Text style={styles.orLabel}>or paste a message</Text>
+
+      <TextInput
+        style={styles.textBox}
+        multiline
+        placeholder="Paste a WhatsApp / Telegram / SMS investment claim here"
+        placeholderTextColor="#9CA3AF"
+        value={pastedText}
+        onChangeText={setPastedText}
+        editable={!isAnalyzing}
+      />
+
+      <TouchableOpacity
+        style={[
+          styles.analyzeButton,
+          (!pastedText.trim() || isAnalyzing) && styles.disabledButton,
+        ]}
+        onPress={handleAnalyzeText}
+        disabled={!pastedText.trim() || isAnalyzing}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.buttonText}>Analyze Pasted Text</Text>
       </TouchableOpacity>
 
 
@@ -487,6 +547,29 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     marginTop: 20,
+  },
+
+  orLabel: {
+    marginTop: 28,
+    marginBottom: 12,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6B7280",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+
+  textBox: {
+    width: "100%",
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: "#111827",
+    textAlignVertical: "top",
+    backgroundColor: "#F9FAFB",
   },
 
   disabledButton: {
