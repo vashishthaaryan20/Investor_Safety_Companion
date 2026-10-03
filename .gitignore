@@ -1,20 +1,31 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pth
+
+# Environment variables
 .env
 .env/
 .env.*
 !.env.example
+
+# Node
 node_modules/
-venv/
-/venv
-.venv/
-__pycache__/
-*.pyc
-.DS_Store
-.expo/
+
+# Build / generated files
 dist/
 build/
-*.log
 .cache/
-*.pth
-tree_output.txt
-anweshabackend/uploads/
-tempCodeRunnerFile.*
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# Expo / generated
+.expo/
+mobile/android/
+mobile/ios/
