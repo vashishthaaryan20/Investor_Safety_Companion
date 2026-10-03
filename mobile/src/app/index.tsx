@@ -16,7 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 
 import {
   sendScreenshotForAnalysis,
-  sendTextForAnalysis,
+  submitFeedback,
   AnalysisResult,
 } from "../services/api";
 
@@ -26,6 +26,23 @@ import {
 // ==========================================
 
 export default function HomeScreen() {
+
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [reportedAnalysis, setReportedAnalysis] = useState<string | null>(null);
+
+  const handleFeedback = async (kind: "wrong_verdict" | "report_scam") => {
+    if (!analysisResult?.analysis_id || feedbackBusy) return;
+    setFeedbackBusy(true);
+    try {
+      await submitFeedback(analysisResult.analysis_id, kind, analysisResult.extracted_text || "");
+      setReportedAnalysis(analysisResult.analysis_id);
+      Alert.alert("Report received", "Your feedback is queued for review.");
+    } catch (error) {
+      Alert.alert("Feedback failed", error instanceof Error ? error.message : "Please retry.");
+    } finally {
+      setFeedbackBusy(false);
+    }
+  };
 
   // Selected screenshot
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -386,6 +403,19 @@ export default function HomeScreen() {
             </Text>
 
           </View>
+          {analysisResult.analysis_id && (
+            <View>
+              <Text style={styles.explanation}>Submitting feedback shares the extracted text with the review team.</Text>
+              {(["wrong_verdict", "report_scam"] as const).map((kind) => (
+                <TouchableOpacity key={kind} style={styles.selectButton}
+                  accessibilityRole="button"
+                  disabled={feedbackBusy || reportedAnalysis === analysisResult.analysis_id}
+                  onPress={() => handleFeedback(kind)}>
+                  <Text style={styles.buttonText}>{kind === "wrong_verdict" ? "Wrong verdict" : "Report scam"}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
           {/* OCR EXTRACTED TEXT */}
           <View style={styles.ocrCard}>
             <View style={styles.ocrHeader}>

@@ -5,13 +5,12 @@ node_modules/
 venv/
 /venv
 .venv/
-__pycache__/
 *.pyc
 .expo/
 dist/
 build/
 *.log
-.DS_Store
-anweshabackend/uploads/
-phishing_detector/.cache/
-tempCodeRunnerFile.*
+.cache/
+__pycache__/
+*.pth
+tree_output.txt
