@@ -127,4 +127,4 @@ existing check pipeline (`/analyzing` → `/api/v1/analyze` or `/api/v1/analyze-
 | Config plugin | `mobile/plugins/with-screen-context.js` (registered in `app.json`) |
 | React Native | `src/app/screen-context.tsx`, `src/services/screen-context.ts`, `src/constants/analysis-focus.ts` |
 | Pipeline changes | `src/state/scan-store.tsx`, `src/app/analyzing.tsx`, `src/services/api.ts`, `src/app/result.tsx`, `src/components/sangyan/result-parts.tsx`, `src/app/(tabs)/index.tsx` |
-| Backend | `anweshabackend/focus.py`, `anweshabackend/main.py`, `phishing_detector/ocr.py` (log gating) |
+| Backend | `anweshabackend/focus.py`, `anweshabackend/server.py`, `phishing_detector/ocr.py` (log gating) |

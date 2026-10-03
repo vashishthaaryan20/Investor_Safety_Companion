@@ -4,14 +4,15 @@ The backend screens screenshots for phishing/scam indicators. It does not determ
 
 ## Start here
 
-Use `src/main.py` as the sole API entry point. `anweshabackend/` is an older parallel backend, retained for reference; it does not run this pipeline.
+The mobile app talks to `anweshabackend/server.py`. It runs this pipeline once per request, adds the investor-safety rules from `anweshabackend/safety_engine.py`, and serves the feedback endpoint. `src/main.py` is a smaller standalone API for the detector alone.
 
 ```powershell
 cd src
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+cd anweshabackend
+python -m uvicorn server:app --host 0.0.0.0 --port 8000
 ```
 
 Set the mobile `API_BASE_URL` in `mobile/src/services/api.ts` to your laptop address. Both existing upload routes remain supported. EasyOCR downloads its models on first use. Existing ResNet weights are loaded through `config.py` / `storage.py`; unavailable weights are reported without suppressing text checks.
