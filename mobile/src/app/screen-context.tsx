@@ -126,6 +126,10 @@ const SOURCE_BADGE: Record<ContextSource, { icon: IconName; label: string }> = {
 
 const TEXT_PREVIEW_CHARS = 600;
 
+function initialState(error: string | undefined): ViewState {
+  return error ? { status: "error", kind: parseErrorKind(error) } : { status: "loading" };
+}
+
 export default function ScreenContextScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -133,26 +137,33 @@ export default function ScreenContextScreen() {
     kind?: string;
     capture?: string;
     error?: string;
+    area?: string;
   }>();
   const source: ContextSource = params.source === "share" ? "share" : "tile";
+  const selectedArea = source === "tile" && params.area === "selected";
   const { resetDraft, updateDraft } = useScan();
-  const [state, setState] = useState<ViewState>({ status: "loading" });
+  const [state, setState] = useState<ViewState>(() => initialState(params.error));
   const [focus, setFocus] = useState<AnalysisFocus>(DEFAULT_FOCUS);
   const [submitting, setSubmitting] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  // A new tile capture or share reopens this screen with new params.
+  const paramsKey = `${params.capture ?? ""}|${params.error ?? ""}`;
+  const [shownKey, setShownKey] = useState(paramsKey);
+  if (shownKey !== paramsKey) {
+    setShownKey(paramsKey);
+    setState(initialState(params.error));
     setFocus(DEFAULT_FOCUS);
     setShowFullText(false);
+  }
 
+  useEffect(() => {
+    let active = true;
     if (params.error) {
       resetDraft("image");
-      setState({ status: "error", kind: parseErrorKind(params.error) });
       return;
     }
 
-    setState({ status: "loading" });
     loadCapture(params.capture, params.kind).then((content) => {
       if (!active) return;
       if (!content) {
@@ -177,7 +188,6 @@ export default function ScreenContextScreen() {
     return () => {
       active = false;
     };
-    // A new tile capture or share reopens this screen with new params.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.capture, params.error]);
 
@@ -361,8 +371,12 @@ export default function ScreenContextScreen() {
             />
           </View>
           <InfoNote icon="eye-outline">
-            The picture shows everything that was on your screen, including notifications. If it
-            shows something private, such as an OTP or bank balance, tap Cancel.
+            {selectedArea
+              ? "Only the area you selected will be sent."
+              : source === "tile"
+                ? "The picture shows everything that was on your screen, including notifications."
+                : "This is the picture you shared."}{" "}
+            If it shows something private, such as an OTP or bank balance, tap Cancel.
           </InfoNote>
         </View>
       ) : (

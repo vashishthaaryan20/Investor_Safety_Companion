@@ -7,8 +7,11 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
+import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
@@ -17,6 +20,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
+import android.window.OnBackInvokedDispatcher
 import __PACKAGE__.R
 
 /**
@@ -28,6 +32,7 @@ class ScreenSelectionActivity : Activity() {
   private var captureId: String? = null
   private var selection: SelectionView? = null
   private var handedOff = false
+  private var lastBackAt = 0L
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -64,13 +69,40 @@ class ScreenSelectionActivity : Activity() {
       }
     }
     setContentView(root)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) {
+        confirmBack()
+      }
+    }
   }
 
+  @Deprecated("Android 13+ uses the OnBackInvokedDispatcher callback registered in onCreate")
+  override fun onBackPressed() {
+    confirmBack()
+  }
+
+  // A drag that starts at the screen edge can still fire the system Back gesture, so one Back
+  // must not throw the capture away.
+  private fun confirmBack() {
+    val now = SystemClock.uptimeMillis()
+    if (now - lastBackAt < BACK_CONFIRM_MS) {
+      finish()
+      return
+    }
+    lastBackAt = now
+    Toast.makeText(this, R.string.sc_select_back_again, Toast.LENGTH_SHORT).show()
+  }
+
+  // MATCH_PARENT height keeps all three buttons the same size when a label wraps to two lines.
   private fun button(label: Int, onClick: () -> Unit) = Button(this).apply {
     setText(label)
     isAllCaps = false
+    maxLines = 2
     setOnClickListener { onClick() }
-    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
+      marginStart = dp(4)
+      marginEnd = dp(4)
+    }
   }
 
   private fun checkSelection() {
@@ -82,7 +114,7 @@ class ScreenSelectionActivity : Activity() {
     val outcome = try {
       val (id, file) = ScreenContextStore.newFile(this, "jpg")
       crop.saveAsJpeg(file)
-      mapOf("kind" to "image", "capture" to id)
+      mapOf("kind" to "image", "capture" to id, "area" to "selected")
     } catch (e: Exception) {
       Log.w(TAG, "Could not save the selected area: " + e.javaClass.simpleName)
       mapOf("error" to "failed")
@@ -109,6 +141,7 @@ class ScreenSelectionActivity : Activity() {
   companion object {
     const val EXTRA_CAPTURE = "capture"
     private const val TAG = "SangyanScreenSelect"
+    private const val BACK_CONFIRM_MS = 2500L
   }
 }
 
@@ -135,11 +168,17 @@ private class SelectionView(context: Context, private val bitmap: Bitmap, privat
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-    val scale = minOf(w.toFloat() / bitmap.width, h.toFloat() / bitmap.height)
+    // A drag that starts at the screen edge is taken by the system Back gesture and closes this
+    // screen, so the image stays clear of the edges and the edges opt out where Android allows.
+    val edge = EDGE_INSET_DP * density
+    val scale = minOf((w - 2 * edge) / bitmap.width, h.toFloat() / bitmap.height)
     val drawnWidth = bitmap.width * scale
     val drawnHeight = bitmap.height * scale
     imageRect.set((w - drawnWidth) / 2, (h - drawnHeight) / 2, (w + drawnWidth) / 2, (h + drawnHeight) / 2)
     hasSelection = false
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      systemGestureExclusionRects = listOf(Rect(0, 0, edge.toInt(), h), Rect(w - edge.toInt(), 0, w, h))
+    }
   }
 
   private fun selectionRect() =
@@ -198,5 +237,6 @@ private class SelectionView(context: Context, private val bitmap: Bitmap, privat
 
   companion object {
     private const val MIN_SELECTION_DP = 32
+    private const val EDGE_INSET_DP = 32
   }
 }

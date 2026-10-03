@@ -106,12 +106,22 @@ def _plan_image_classifier() -> dict[str, str]:
 
     if config.MODEL_PATH.exists():
         return {"status": "available", "reason": "Weights found locally; loaded on first screenshot."}
-    if storage.s3_enabled() and find_spec("boto3") is not None and os.getenv("AWS_ACCESS_KEY_ID"):
+    missing = [
+        label
+        for label, present in (
+            ("an S3 bucket name", storage.s3_enabled()),
+            ("boto3", find_spec("boto3") is not None),
+            ("AWS credentials", bool(os.getenv("AWS_ACCESS_KEY_ID"))),
+        )
+        if not present
+    ]
+    if not missing:
         return {"status": "available", "reason": "Weights are downloaded from S3 on first screenshot."}
     return {
         "status": "unavailable",
-        "reason": "No model weights on the server, and the S3 download needs boto3 and AWS "
-        "credentials in src/.env.",
+        "reason": "No model weights on the server, and the S3 download is missing "
+        + ", ".join(missing)
+        + ".",
     }
 
 
@@ -303,6 +313,7 @@ def build_response(
         phishing_confidence=legacy.get("confidence"),
         extra_signals=detector_signals(detectors),
         engine_risk=engine.risk.model_dump(),
+        typed=typed,
     )
     response = {
         "analysis_id": engine.analysis_id,

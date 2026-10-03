@@ -27,7 +27,7 @@ import {
 import { Colors, Radius, Space, ToneColors, Typography } from "@/constants/design";
 import { buildReasonSentence, buildSafetyPlan, getRelatedTopics } from "@/constants/guidance";
 import { getLearnTopic, type LearnTopicId } from "@/constants/learn-content";
-import { getConfidenceCopy, getRiskCopy, getRiskScore } from "@/constants/risk";
+import { getConfidenceCopy, getHeadline, getRiskCopy, getRiskScore } from "@/constants/risk";
 import { useScan } from "@/state/scan-store";
 import { confirmAction } from "@/utils/confirm";
 import { formatDateTime } from "@/utils/format-date";
@@ -62,7 +62,7 @@ export default function ResultScreen() {
     const copy = getRiskCopy(result.risk.level);
     const { value, max } = getRiskScore(result);
     AccessibilityInfo.announceForAccessibility(
-      `Check complete. ${copy.label}, score ${value} out of ${max}. ${copy.headline}.`
+      `Check complete. ${copy.label}, score ${value} out of ${max}. ${getHeadline(result)}.`
     );
     // Announce once when the result first appears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,6 +73,7 @@ export default function ResultScreen() {
   }
 
   const risk = getRiskCopy(result.risk.level);
+  const headline = getHeadline(result);
   const score = getRiskScore(result);
   const confidence = getConfidenceCopy(result);
   const advice = result.recommendation?.message ?? risk.advice;
@@ -190,12 +191,12 @@ export default function ResultScreen() {
             style={styles.heroTop}
             accessible
             accessibilityRole="header"
-            accessibilityLabel={`${risk.label}, score ${score.value} out of ${score.max}. ${risk.headline}.`}
+            accessibilityLabel={`${risk.label}, score ${score.value} out of ${score.max}. ${headline}.`}
           >
             <IconBadge icon={risk.icon} color={Colors.inverse} background={risk.color} size={52} />
             <View style={styles.heroTitles}>
               <RiskBadge risk={risk} score={score} inverse />
-              <AppText variant="title">{risk.headline}</AppText>
+              <AppText variant="title">{headline}</AppText>
             </View>
           </View>
           <View style={styles.meterBlock}>

@@ -107,6 +107,22 @@ export function getConfidenceCopy(result: AnalysisResult): ConfidenceCopy | unde
   };
 }
 
+/** The level's headline, worded to match how many signals are listed under it. */
+export function getHeadline(result: AnalysisResult): string {
+  const copy = getRiskCopy(result.risk.level);
+  const count = result.signals.length;
+  switch (result.risk.level) {
+    case "ELEVATED":
+      return count === 1 ? "A serious warning sign found" : copy.headline;
+    case "MODERATE":
+      return count === 1 ? "A warning sign found" : copy.headline;
+    case "LOW_ATTENTION":
+      return count > 0 ? "Only minor signs found" : copy.headline;
+    default:
+      return copy.headline;
+  }
+}
+
 export function getResultCopy(result: AnalysisResult): RiskCopy {
   return isInconclusive(result) ? UNCLEAR_COPY : getRiskCopy(result.risk.level);
 }

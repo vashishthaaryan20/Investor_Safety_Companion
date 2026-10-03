@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Animated, Easing, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -44,7 +44,7 @@ export default function AnalyzingScreen() {
   const steps = draft.mode === "image" ? IMAGE_STEPS : TEXT_STEPS;
   const [step, setStep] = useState(0);
   const [slow, setSlow] = useState(false);
-  const pulse = useRef(new Animated.Value(0)).current;
+  const [pulse] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const timer = setTimeout(() => setSlow(true), SLOW_NOTICE_MS);

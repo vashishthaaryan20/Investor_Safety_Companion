@@ -68,25 +68,33 @@ def where(exc: BaseException) -> str:
     return f"{type(exc).__name__} at {os.path.basename(last.filename)}:{last.lineno}"
 
 
+class ImageRejected(HTTPException):
+    """An upload that fails validation; `code` lets the app explain which check failed."""
+
+    def __init__(self, status_code: int, detail: str, code: str):
+        super().__init__(status_code=status_code, detail=detail)
+        self.code = code
+
+
 def decode_image(data: bytes) -> tuple[Image.Image, str]:
     """Validate and decode an upload. Returns an RGB image and its detected format.
 
     The format comes from the file's own bytes, not its name or declared content type.
     """
     if not data:
-        raise HTTPException(status_code=400, detail=MSG_EMPTY)
+        raise ImageRejected(400, MSG_EMPTY, "image_empty")
     if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(status_code=413, detail=MSG_TOO_LARGE)
+        raise ImageRejected(413, MSG_TOO_LARGE, "image_too_large")
     try:
         with Image.open(BytesIO(data)) as probe:
             image_format = probe.format or ""
             width, height = probe.size
             if image_format not in ALLOWED_IMAGE_FORMATS:
-                raise HTTPException(status_code=415, detail=MSG_UNSUPPORTED)
+                raise ImageRejected(415, MSG_UNSUPPORTED, "image_unsupported")
             if width * height > MAX_IMAGE_PIXELS:
-                raise HTTPException(status_code=413, detail=MSG_TOO_MANY_PIXELS)
+                raise ImageRejected(413, MSG_TOO_MANY_PIXELS, "image_too_many_pixels")
             if min(width, height) < MIN_IMAGE_SIDE:
-                raise HTTPException(status_code=400, detail=MSG_TOO_SMALL)
+                raise ImageRejected(400, MSG_TOO_SMALL, "image_too_small")
             probe.verify()
         # verify() leaves the image unusable; decode again to catch truncated pixel data.
         with Image.open(BytesIO(data)) as image:
@@ -95,9 +103,9 @@ def decode_image(data: bytes) -> tuple[Image.Image, str]:
     except HTTPException:
         raise
     except Image.DecompressionBombError as exc:
-        raise HTTPException(status_code=413, detail=MSG_TOO_MANY_PIXELS) from exc
+        raise ImageRejected(413, MSG_TOO_MANY_PIXELS, "image_too_many_pixels") from exc
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError, EOFError) as exc:
-        raise HTTPException(status_code=400, detail=MSG_UNREADABLE) from exc
+        raise ImageRejected(400, MSG_UNREADABLE, "image_unreadable") from exc
 
 
 class RateLimiter:
@@ -159,6 +167,10 @@ def install(app: FastAPI) -> None:
         if PRODUCTION:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
+
+    @app.exception_handler(ImageRejected)
+    async def image_rejected(request: Request, exc: ImageRejected):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail, "error": exc.code})
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError):

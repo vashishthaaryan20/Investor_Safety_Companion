@@ -14,6 +14,12 @@ const BETTER_SCREENSHOT_TIPS = [
   "If the message is long, paste it as text instead.",
 ];
 
+const BETTER_TEXT_TIPS = [
+  "Paste the whole message, not just a word or two.",
+  "Include any offer, amount, phone number, or link it mentions.",
+  "If the message came as a picture, check a screenshot of it instead.",
+];
+
 const STAY_SAFE_TIPS = [
   "Don't send money or share OTPs until you have verified the sender.",
   "Real investments never guarantee profits.",
@@ -22,7 +28,7 @@ const STAY_SAFE_TIPS = [
 
 export default function InconclusiveScreen() {
   const router = useRouter();
-  const { result, resetDraft } = useScan();
+  const { result, draft, resetDraft } = useScan();
 
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility(
@@ -39,6 +45,10 @@ export default function InconclusiveScreen() {
     router.dismissTo("/scan");
   };
 
+  // Results saved before contract 1.0 don't say which input they came from.
+  const typed =
+    result.analysis_mode === "pasted_text" ||
+    (result.analysis_mode !== "screenshot_ocr" && draft.mode === "text");
   const partialText = result.extracted_text?.trim();
 
   return (
@@ -49,28 +59,49 @@ export default function InconclusiveScreen() {
       title="No result could be established"
       message={result.explanation}
       actions={
-        <>
-          <AppButton
-            label="Try another screenshot"
-            icon="image-outline"
-            onPress={() => restart("image")}
-          />
-          <AppButton
-            label="Paste the message instead"
-            icon="chatbox-ellipses-outline"
-            variant="secondary"
-            onPress={() => restart("text")}
-          />
-          <AppButton label="Go home" variant="tertiary" onPress={() => router.dismissTo("/")} />
-        </>
+        typed ? (
+          <>
+            <AppButton
+              label="Paste the full message"
+              icon="chatbox-ellipses-outline"
+              onPress={() => restart("text")}
+            />
+            <AppButton
+              label="Check a screenshot instead"
+              icon="image-outline"
+              variant="secondary"
+              onPress={() => restart("image")}
+            />
+            <AppButton label="Go home" variant="tertiary" onPress={() => router.dismissTo("/")} />
+          </>
+        ) : (
+          <>
+            <AppButton
+              label="Try another screenshot"
+              icon="image-outline"
+              onPress={() => restart("image")}
+            />
+            <AppButton
+              label="Paste the message instead"
+              icon="chatbox-ellipses-outline"
+              variant="secondary"
+              onPress={() => restart("text")}
+            />
+            <AppButton label="Go home" variant="tertiary" onPress={() => router.dismissTo("/")} />
+          </>
+        )
       }
     >
       <InlineAlert
         tone="caution"
         title="This is not a “safe” result"
-        message="We couldn't read enough to look for warning signs. Treat the message with care until you can check it properly."
+        message={
+          typed
+            ? "There wasn't enough in the message to look for warning signs. Treat it with care until you can check it properly."
+            : "We couldn't read enough to look for warning signs. Treat the message with care until you can check it properly."
+        }
       />
-      {!!partialText && (
+      {!!partialText && !typed && (
         <Card>
           <SectionHeader title="What we could read" />
           <AppText tone="muted" style={{ fontStyle: "italic" }}>
@@ -80,7 +111,7 @@ export default function InconclusiveScreen() {
       )}
       <Card>
         <SectionHeader icon="bulb-outline" title="Tips for a better check" />
-        <BulletList items={BETTER_SCREENSHOT_TIPS} />
+        <BulletList items={typed ? BETTER_TEXT_TIPS : BETTER_SCREENSHOT_TIPS} />
       </Card>
       <Card>
         <SectionHeader icon="shield-outline" title="Stay safe meanwhile" />

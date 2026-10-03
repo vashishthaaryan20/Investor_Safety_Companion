@@ -148,16 +148,17 @@ RECOMMENDATIONS = {
         "VERIFY_BEFORE_PROCEEDING",
         "Check who sent this and verify the offer independently before you act.",
     ),
+    # The explanation already says a low score is not proof of safety; this is the action.
     "LOW_ATTENTION": (
         "VERIFY_BEFORE_PROCEEDING",
-        "No common scam signs were found, but that is not proof it is safe. "
-        "Verify independently before you invest or pay.",
+        "Verify the sender and the offer independently before you invest or pay.",
     ),
     "INCONCLUSIVE": (
         "RETRY_WITH_CLEARER_INPUT",
         "We couldn't read enough to check this. Try a clearer screenshot or paste the message as text.",
     ),
 }
+TYPED_INCONCLUSIVE_ADVICE = "Paste the whole message so it can be checked properly."
 
 
 def recommendation_for(level: str) -> dict:
@@ -301,6 +302,7 @@ def analyze_content(
     phishing_confidence: float | None = None,
     extra_signals: list[dict] | None = None,
     engine_risk: dict[str, Any] | None = None,
+    typed: bool = False,
 ) -> dict[str, Any]:
     """Investor-safety rules on top of the detection engine's verdict.
 
@@ -525,7 +527,14 @@ def analyze_content(
     if status == "inconclusive":
         level = "INCONCLUSIVE"
 
-    if status == "inconclusive":
+    recommendation = recommendation_for(level)
+    if status == "inconclusive" and typed:
+        explanation = (
+            "There was not enough in this message to check it properly. "
+            "Paste the whole message, including any offer or link it mentions."
+        )
+        recommendation["message"] = TYPED_INCONCLUSIVE_ADVICE
+    elif status == "inconclusive":
         explanation = (
             "We could not read enough text to check this properly. "
             "Try a clearer screenshot, or paste the message as text."
@@ -537,8 +546,14 @@ def analyze_content(
         )
     elif level in {"ELEVATED", "MODERATE"}:
         explanation = (
-            "We found some warning signs. Read them below and check the source carefully "
-            "before you take any action."
+            "We found a warning sign. Read it below"
+            if len(signals) == 1
+            else "We found some warning signs. Read them below"
+        ) + " and check the source carefully before you take any action."
+    elif signals:
+        explanation = (
+            "We found only minor signs, listed below. That does not mean it is safe. "
+            "Always verify before you invest or pay."
         )
     else:
         explanation = (
@@ -557,5 +572,5 @@ def analyze_content(
         "signals": signals,
         "explanation": explanation,
         "verification": VERIFICATION_STEPS,
-        "recommendation": recommendation_for(level),
+        "recommendation": recommendation,
     }

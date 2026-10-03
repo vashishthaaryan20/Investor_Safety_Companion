@@ -167,6 +167,37 @@ def test_unreadable_screenshots_are_inconclusive(client, text, confidence):
     assert body["signals"] == []
 
 
+def test_short_pasted_text_is_not_told_to_send_a_screenshot(client):
+    body = client.post("/api/v1/analyze-text", json={"text": "ok thanks!"}).json()
+    assert body["status"] == "inconclusive"
+    assert body["recommendation"]["action"] == "RETRY_WITH_CLEARER_INPUT"
+    for message in (body["explanation"], body["recommendation"]["message"]):
+        assert "screenshot" not in message.lower()
+
+
+def test_wording_matches_the_signals_found():
+    low = analyze_content("Your monthly statement is ready to view in the app.")
+    assert low["risk"]["level"] == "LOW_ATTENTION" and not low["signals"]
+    assert "not mean it is safe" in low["explanation"]
+    assert "safe" not in low["recommendation"]["message"]
+
+    single = analyze_content("Guaranteed returns of 4% every month on your deposit.")
+    assert len(single["signals"]) == 1
+    assert single["explanation"].startswith("We found a warning sign.")
+
+
+def test_model_reason_names_only_what_is_missing(monkeypatch):
+    from phishing_detector import config, storage
+
+    monkeypatch.setattr(config, "MODEL_PATH", Path("does-not-exist.pt"))
+    monkeypatch.setattr(storage, "s3_enabled", lambda: True)
+    monkeypatch.setattr(engine_adapter, "find_spec", lambda name: object())
+    monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
+    reason = engine_adapter._plan_image_classifier()["reason"]
+    assert reason.endswith("is missing AWS credentials.")
+    assert "boto3" not in reason
+
+
 @pytest.mark.parametrize(
     "raw",
     [
@@ -216,11 +247,18 @@ def test_ocr_exception_is_controlled(client):
 
 
 def test_invalid_images_are_client_errors(client):
-    assert upload(client, b"definitely not an image").status_code == 400
     gif = BytesIO()
     Image.new("RGB", (40, 40)).save(gif, format="GIF")
-    assert upload(client, gif.getvalue()).status_code == 415
-    assert upload(client, png((4, 4))).status_code == 400
+    cases = [
+        (b"definitely not an image", 400, "image_unreadable"),
+        (gif.getvalue(), 415, "image_unsupported"),
+        (png((4, 4)), 400, "image_too_small"),
+    ]
+    for data, status, code in cases:
+        response = upload(client, data)
+        assert response.status_code == status
+        assert response.json()["error"] == code
+        assert response.json()["detail"]
 
 
 def test_timeout_is_recoverable(client, monkeypatch):

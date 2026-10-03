@@ -103,11 +103,14 @@ export type ApiErrorKind =
 
 export class ApiError extends Error {
   kind: ApiErrorKind;
+  /** The server's machine-readable reason, e.g. "image_too_small", when it sent one. */
+  code?: string;
 
-  constructor(kind: ApiErrorKind, message: string) {
+  constructor(kind: ApiErrorKind, message: string, code?: string) {
     super(message);
     this.name = "ApiError";
     this.kind = kind;
+    this.code = code;
   }
 }
 
@@ -148,6 +151,11 @@ function describeFailure(status: number, data: unknown) {
       ? String((data as { detail: unknown }).detail).slice(0, 160)
       : "";
   return detail ? `HTTP ${status}: ${detail}` : `HTTP ${status}`;
+}
+
+function errorCode(data: unknown): string | undefined {
+  const code = typeof data === "object" && data !== null ? (data as { error?: unknown }).error : undefined;
+  return typeof code === "string" && /^[a-z_]{1,40}$/.test(code) ? code : undefined;
 }
 
 async function request(
@@ -200,7 +208,11 @@ async function request(
   }
 
   if (!response.ok) {
-    throw new ApiError(errorKindForStatus(response.status), describeFailure(response.status, data));
+    throw new ApiError(
+      errorKindForStatus(response.status),
+      describeFailure(response.status, data),
+      errorCode(data)
+    );
   }
   return data;
 }

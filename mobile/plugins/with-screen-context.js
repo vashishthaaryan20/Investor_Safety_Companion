@@ -38,6 +38,7 @@ const STRINGS = {
   sc_select_whole: "Whole screen",
   sc_select_cancel: "Cancel",
   sc_select_too_small: "Drag a box over the message first",
+  sc_select_back_again: "Press Back again to discard this capture",
 };
 
 const PERMISSIONS = [

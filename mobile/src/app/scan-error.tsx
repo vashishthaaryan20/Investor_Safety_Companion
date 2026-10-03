@@ -30,16 +30,16 @@ const ERROR_COPY: Record<ApiErrorKind, ErrorCopy> = {
     message: "We couldn't reach the SANGYAN Shield server. Your content was not checked.",
     tips: [
       "Check that your internet or Wi-Fi is turned on.",
-      "If you are testing locally, keep the phone and laptop on the same Wi-Fi.",
-      "Make sure the SANGYAN server is running, then try again.",
+      "Turn off any VPN or data saver that might block the app.",
+      "The service may be briefly unavailable. Wait a moment, then try again.",
     ],
   },
   timeout: {
     icon: "hourglass-outline",
     title: "This is taking too long",
-    message: "The check didn't finish in time. This can happen on a slow connection.",
+    message: "The check didn't finish in time. The connection may be slow or the service busy.",
     tips: [
-      "Move to a spot with a better signal and try again.",
+      "Wait a few seconds and try again.",
       "Crop the screenshot to just the message so it uploads faster.",
       "Paste the message as text, which needs much less data.",
     ],
@@ -110,12 +110,33 @@ const INVALID_TEXT_COPY: ErrorCopy = {
   ],
 };
 
+const IMAGE_CODE_COPY: Record<string, ErrorCopy> = {
+  image_too_small: {
+    icon: "contract-outline",
+    title: "This image is too small to read",
+    message: "It is only a few pixels across, so there is nothing to check. Nothing was checked.",
+    tips: [
+      "Take a full screenshot of the message, not a thumbnail or icon.",
+      "Or paste the message as text instead.",
+    ],
+  },
+  image_empty: {
+    icon: "image-outline",
+    title: "The image was empty",
+    message: "The file had no picture in it. Nothing was checked.",
+    tips: ["Take a fresh screenshot and try again.", "Or paste the message as text instead."],
+  },
+};
+
 export default function ScanErrorScreen() {
   const router = useRouter();
   const { error, draft } = useScan();
   const [showDetails, setShowDetails] = useState(false);
   const kind = error?.kind ?? "network";
-  const copy = kind === "invalid_input" && draft.mode === "text" ? INVALID_TEXT_COPY : ERROR_COPY[kind];
+  const copy =
+    kind === "invalid_input" && draft.mode === "text"
+      ? INVALID_TEXT_COPY
+      : (error?.code && IMAGE_CODE_COPY[error.code]) || ERROR_COPY[kind];
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {

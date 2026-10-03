@@ -34,4 +34,5 @@ mobile/ios/
 /venv
 tree_output.txt
 anweshabackend/uploads/
+anweshabackend/validation/.fault
 tempCodeRunnerFile.*
