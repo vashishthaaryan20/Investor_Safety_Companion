@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import sys
 from io import BytesIO
 from pathlib import Path
+from typing import Literal
+from uuid import UUID
 
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 # src/phishing_detector first (full OCR), then this folder (safety_engine).
 BACKEND_DIR = Path(__file__).resolve().parent
@@ -21,12 +25,32 @@ sys.path = [str(SRC_DIR), str(BACKEND_DIR)] + [
     and Path(p).resolve() != BACKEND_DIR
 ]
 
-from phishing_detector.ocr import analyze_image, extract_entities  # noqa: E402
-from safety_engine import analyze_content  # noqa: E402
+os.environ.setdefault("DETECTION_CONFIG", str(SRC_DIR / "detection.local.json"))
+
+from phishing_detector.feedback import record_feedback  # noqa: E402
+from phishing_detector.service import analyze_image, analyze_text  # noqa: E402
+from safety_engine import analyze_content, detector_signals  # noqa: E402
 from focus import build_focus_report, normalize_focus  # noqa: E402
 
 UPLOAD_DIR = BACKEND_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+def _classifier_mode() -> str | None:
+    """Only try the image classifier when its weights can actually be loaded."""
+    from importlib.util import find_spec
+
+    from phishing_detector import config, storage
+
+    if config.MODEL_PATH.exists():
+        return "full"
+    if storage.s3_enabled() and find_spec("boto3") is not None:
+        return "full"
+    print("[api] Image classifier off: no local weights and S3 is unavailable.", flush=True)
+    return None
+
+
+CLASSIFIER_MODE = _classifier_mode()
 
 app = FastAPI(
     title="SANGYAN Shield API",
@@ -55,6 +79,13 @@ class TextPayload(BaseModel):
     )
 
 
+class FeedbackPayload(BaseModel):
+    analysis_id: UUID
+    kind: Literal["wrong_verdict", "report_scam"]
+    note: str = Field(default="", max_length=2000)
+    evidence_text: str = Field(default="", max_length=20000)
+
+
 def _load_pil(image_bytes: bytes) -> Image.Image:
     try:
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
@@ -63,28 +94,20 @@ def _load_pil(image_bytes: bytes) -> Image.Image:
     return image
 
 
-def _optional_phishing_label(image: Image.Image) -> tuple[str | None, float | None]:
-    try:
-        from phishing_detector.model import get_classifier, predict_image
-
-        label, confidence, _probs = predict_image(get_classifier(), image)
-        return label, confidence
-    except Exception as exc:
-        print(f"[api] Phishing classifier skipped: {exc}", flush=True)
-        return None, None
-
-
-def _build_result(text: str, entities: list, image: Image.Image | None = None) -> dict:
-    phishing_label = None
-    phishing_confidence = None
-    if image is not None:
-        phishing_label, phishing_confidence = _optional_phishing_label(image)
-    return analyze_content(
-        text,
-        entities,
-        phishing_label=phishing_label,
-        phishing_confidence=phishing_confidence,
+def _build_result(detection: dict) -> dict:
+    """Investor-safety verdict on top of the phishing_detector pass (OCR, entities, detectors)."""
+    result = analyze_content(
+        detection.get("text") or "",
+        detection.get("entities") or [],
+        phishing_label=detection.get("label"),
+        phishing_confidence=detection.get("confidence"),
+        extra_signals=detector_signals(detection.get("detectors")),
     )
+    result["detectors"] = [
+        {"name": d["name"], "status": d["status"], "score": d["score"]}
+        for d in detection.get("detectors") or []
+    ]
+    return result
 
 
 @app.get("/api/v1/health")
@@ -115,11 +138,10 @@ async def analyze_screenshot(
         raise HTTPException(status_code=400, detail="Empty image upload.")
 
     pil_image = _load_pil(image_bytes)
-    ocr = analyze_image(pil_image)
-    text = ocr.get("text") or ""
-    result = _build_result(text, ocr.get("entities") or [], pil_image)
+    detection = await run_in_threadpool(analyze_image, pil_image, classify=CLASSIFIER_MODE)
+    result = _build_result(detection)
     result["analysis_mode"] = "screenshot_ocr"
-    result["focus_report"] = build_focus_report(focus, result, text)
+    result["focus_report"] = build_focus_report(focus, result, result["extracted_text"])
 
     print("Risk:", result["risk"])
     print("=" * 60)
@@ -128,10 +150,17 @@ async def analyze_screenshot(
 
 @app.post("/api/v1/analyze-text")
 def analyze_pasted_text(payload: TextPayload):
-    result = analyze_content(payload.text, entities=extract_entities(payload.text))
+    result = _build_result(analyze_text(payload.text))
     result["analysis_mode"] = "pasted_text"
     result["focus_report"] = build_focus_report(normalize_focus(payload.focus), result, payload.text)
     return result
+
+
+@app.post("/api/v1/feedback", status_code=201)
+def submit_feedback(payload: FeedbackPayload):
+    return record_feedback(
+        str(payload.analysis_id), payload.kind, payload.note, payload.evidence_text
+    )
 
 
 @app.post("/api/v1/save-image-json")

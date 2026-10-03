@@ -10,9 +10,9 @@ import {
 } from "@/constants/guidance";
 import { getLearnTopic, type LearnTopicId } from "@/constants/learn-content";
 import { getCategoryIcon, getSeverityCopy } from "@/constants/risk";
-import type { AnalysisSignal, FocusReport } from "@/services/api";
+import { submitFeedback, type AnalysisSignal, type FocusReport } from "@/services/api";
 
-import { AppText, BulletList, Card, TextLink, type IconName } from "./ui";
+import { AppButton, AppText, BulletList, Card, TextLink, type IconName } from "./ui";
 
 export function RiskMeter({ score, color }: { score: number; color: string }) {
   const filled = Math.max(1, Math.min(10, Math.round(score)));
@@ -215,6 +215,81 @@ export function FocusReportCard({ report }: { report: FocusReport }) {
   );
 }
 
+type FeedbackKind = "wrong_verdict" | "report_scam";
+
+/** Lets people flag a wrong verdict or a scam; reports go to a human review queue. */
+export function ReportCard({ analysisId, text }: { analysisId: string; text: string }) {
+  const [sending, setSending] = useState<FeedbackKind | null>(null);
+  const [sent, setSent] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const send = async (kind: FeedbackKind) => {
+    setSending(kind);
+    setFailed(false);
+    try {
+      await submitFeedback(analysisId, kind, text);
+      setSent(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setSending(null);
+    }
+  };
+
+  if (sent) {
+    return (
+      <Card style={styles.reportCard}>
+        <View style={styles.reportDone} accessible accessibilityLiveRegion="polite">
+          <Ionicons name="checkmark-circle" size={22} color={ToneColors.success.fg} />
+          <AppText variant="bodyStrong" tone="ink" style={styles.flex}>
+            Thanks, your report was sent
+          </AppText>
+        </View>
+        <AppText variant="caption" tone="muted">
+          A person will review it. It doesn&apos;t change this result.
+        </AppText>
+      </Card>
+    );
+  }
+
+  return (
+    <Card style={styles.reportCard}>
+      <AppText variant="subheading" accessibilityRole="header">
+        Did we get this wrong?
+      </AppText>
+      <AppText variant="caption" tone="muted">
+        Sending a report shares the text we checked with the SANGYAN team for review. Nothing else
+        is sent.
+      </AppText>
+      <View style={styles.reportActions}>
+        <AppButton
+          label="Wrong result"
+          icon="thumbs-down-outline"
+          variant="secondary"
+          loading={sending === "wrong_verdict"}
+          disabled={sending !== null}
+          onPress={() => send("wrong_verdict")}
+          style={styles.reportButton}
+        />
+        <AppButton
+          label="Report scam"
+          icon="flag-outline"
+          variant="secondary"
+          loading={sending === "report_scam"}
+          disabled={sending !== null}
+          onPress={() => send("report_scam")}
+          style={styles.reportButton}
+        />
+      </View>
+      {failed && (
+        <AppText variant="caption" tone="critical" accessibilityLiveRegion="polite">
+          Couldn&apos;t send the report. Check your connection and try again.
+        </AppText>
+      )}
+    </Card>
+  );
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -300,6 +375,23 @@ export function Checklist({
 }
 
 const styles = StyleSheet.create({
+  reportCard: {
+    gap: Space.sm + 2,
+  },
+  reportDone: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Space.sm,
+  },
+  reportActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Space.sm + 2,
+  },
+  reportButton: {
+    flexGrow: 1,
+    flexBasis: 140,
+  },
   flex: {
     flex: 1,
   },

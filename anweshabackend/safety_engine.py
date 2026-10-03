@@ -126,11 +126,115 @@ def _score(signals: list[dict]) -> tuple[str, int]:
     return "LOW_ATTENTION", total
 
 
+# phishing_detector finding title -> (signal id, category, severity, title, description).
+# Ids shared with our own rules are dropped when our rule already fired. The visual classifier
+# finding is left out on purpose: phishing_visual applies its own confidence threshold.
+DETECTOR_FINDINGS: dict[str, tuple[str, str, str, str, str]] = {
+    "Possible brand imitation": (
+        "brand_imitation", "source", "high", "Link pretends to be a known brand",
+        "The web address looks like a well-known company's site but is not its official one. "
+        "Fake look-alike sites are used to steal logins and money.",
+    ),
+    "Brand and link differ": (
+        "brand_link_mismatch", "source", "medium", "Brand name and link don't match",
+        "The message names a company, but the link goes somewhere else. "
+        "Open the company's official app or website yourself instead.",
+    ),
+    "Known bad indicator": (
+        "reported_scam", "source", "high", "Matches a reported scam",
+        "A link or number here matches one already reported as a scam.",
+    ),
+    "Uncertain blocklist match": (
+        "possible_reported_scam", "source", "medium", "May match a reported scam",
+        "Part of this message looks like something already reported as a scam, "
+        "but we could not read it clearly enough to be sure.",
+    ),
+    "Shortened link": (
+        "short_link", "source", "medium", "Shortened link hides where it goes",
+        "Short links hide the real website. Scammers use them so you can't see the address before tapping.",
+    ),
+    "Unusual subdomains": (
+        "unusual_link", "source", "low", "Link has an unusual address",
+        "The web address has many extra parts, a trick used to make fake sites look official.",
+    ),
+    "Internationalized domain": (
+        "lookalike_letters", "source", "low", "Link uses unusual letters",
+        "The web address uses special characters that can look like normal letters.",
+    ),
+    "Configured TLD risk": (
+        "risky_domain_ending", "source", "low", "Unusual web address ending",
+        "The link ends in a web address type that is often used by scam sites.",
+    ),
+    "Account threat or KYC demand": (
+        "account_threat", "behavior", "high", "Threatens to block your account",
+        "It says your account will be blocked or asks you to update KYC through a link. "
+        "Banks and brokers never ask for KYC this way.",
+    ),
+    "Prize or refund bait": (
+        "prize_bait", "content", "medium", "Promises a prize or refund",
+        "Unexpected prizes and refunds are a common way to get you to tap a link or pay a fee.",
+    ),
+    "Remote access request": (
+        "remote_access", "privacy", "high", "Asks you to install a screen-sharing app",
+        "Apps like AnyDesk or TeamViewer let a stranger see and control your phone, "
+        "including your banking apps.",
+    ),
+    "Text classifier signal": (
+        "scam_language", "content", "medium", "Wording matches known scams",
+        "Our text check found wording similar to known scam messages.",
+    ),
+    "Urgency": (
+        "urgency", "behavior", "medium", "Pushes you to act fast",
+        "It creates pressure with deadlines or warnings. "
+        "Scammers rush people so they don't stop to check.",
+    ),
+    "Payment demand": (
+        "payment_request", "behavior", "medium", "Asks you to send money",
+        "It asks you to pay a fee or send money. Money sent to strangers is very hard to get back.",
+    ),
+    "Request for a secret": (
+        "sensitive_request", "privacy", "high", "Asks for OTP, PIN, or password",
+        "No real bank, broker, or SEBI officer will ever ask for your OTP or UPI PIN. "
+        "Sharing it can let someone empty your account.",
+    ),
+}
+
+# Findings are pre-weighted by OCR confidence; below this they are mostly misreads.
+MIN_DETECTOR_SCORE = 0.1
+
+
+def detector_signals(detectors: list[dict[str, Any]] | None) -> list[dict]:
+    """Turn phishing_detector findings into signals, one per kind, with all evidence merged."""
+    merged: dict[str, dict] = {}
+    for detection in detectors or []:
+        for finding in detection.get("findings") or []:
+            spec = DETECTOR_FINDINGS.get(finding.get("title", ""))
+            if spec is None or (finding.get("score") or 0) < MIN_DETECTOR_SCORE:
+                continue
+            signal_id, category, severity, title, description = spec
+            signal = merged.setdefault(
+                signal_id,
+                {
+                    "id": signal_id,
+                    "category": category,
+                    "severity": severity,
+                    "title": title,
+                    "description": description,
+                    "evidence": [],
+                },
+            )
+            evidence = " ".join(str(finding.get("evidence") or "").split())
+            if evidence and evidence not in signal["evidence"] and len(signal["evidence"]) < 3:
+                signal["evidence"].append(evidence)
+    return list(merged.values())
+
+
 def analyze_content(
     text: str,
     entities: list[dict[str, Any]] | None = None,
     phishing_label: str | None = None,
     phishing_confidence: float | None = None,
+    extra_signals: list[dict] | None = None,
 ) -> dict[str, Any]:
     text = text or ""
     entities = entities or []
@@ -305,6 +409,20 @@ def analyze_content(
             "Looks like a known fake page",
             "Our image check found this screenshot looks similar to known phishing pages.",
             [f"{phishing_confidence:.0f}% match with phishing layouts"],
+        )
+
+    own_ids = {s["id"] for s in signals}
+    for extra in extra_signals or []:
+        if extra["id"] in own_ids:
+            continue
+        _add(
+            signals,
+            extra["id"],
+            extra["category"],
+            extra["severity"],
+            extra["title"],
+            extra["description"],
+            extra.get("evidence"),
         )
 
     level, score = _score(signals)

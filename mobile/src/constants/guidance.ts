@@ -13,7 +13,30 @@ export type SignalId =
   | "sensitive_request"
   | "payment_request"
   | "suspicious_url"
-  | "phishing_visual";
+  | "phishing_visual"
+  | "brand_imitation"
+  | "brand_link_mismatch"
+  | "short_link"
+  | "reported_scam"
+  | "account_threat"
+  | "prize_bait"
+  | "remote_access"
+  | "scam_language";
+
+/** Backend ids that share guidance with a closely related signal. */
+const SIGNAL_ALIASES: Record<string, SignalId> = {
+  possible_reported_scam: "reported_scam",
+  unusual_link: "suspicious_url",
+  lookalike_letters: "brand_imitation",
+  risky_domain_ending: "suspicious_url",
+};
+
+const LINK_SIGNALS: ReadonlySet<SignalId> = new Set([
+  "suspicious_url",
+  "brand_imitation",
+  "brand_link_mismatch",
+  "short_link",
+]);
 
 export interface SignalGuidance {
   /** Completes the sentence "We rated this … because it …". */
@@ -157,6 +180,96 @@ const GUIDANCE: Record<SignalId, SignalGuidance> = {
     ],
     learnTopic: "phishing-impersonation",
   },
+  brand_imitation: {
+    reason: "has a link that pretends to be a well-known company",
+    whyItMatters:
+      "Look-alike web addresses copy a real bank or broker's name with small changes, so the fake page feels familiar.",
+    action: "Open the company's official app instead of the link.",
+    steps: [
+      "Don't tap the link, even if the name looks right.",
+      "Type the company's address yourself or use its app from the Play Store.",
+      "Report the message to the company through its official helpline.",
+    ],
+    learnTopic: "phishing-impersonation",
+  },
+  brand_link_mismatch: {
+    reason: "names a company but links somewhere else",
+    whyItMatters:
+      "Scammers mention trusted brands to win your confidence, then send you to their own website.",
+    action: "Open the company's official app instead of the link.",
+    steps: [
+      "Check that the website address belongs to the company named.",
+      "When in doubt, contact the company using details from its official website.",
+    ],
+    learnTopic: "phishing-impersonation",
+  },
+  short_link: {
+    reason: "uses a short link that hides where it goes",
+    whyItMatters:
+      "Short links like bit.ly hide the real website, so you can't see you're being sent to a fake page.",
+    action: "Avoid opening links or submitting information.",
+    steps: [
+      "Don't tap short links in messages from people you don't know.",
+      "Ask the sender for the full official website address instead.",
+    ],
+    learnTopic: "phishing-impersonation",
+  },
+  reported_scam: {
+    reason: "matches something already reported as a scam",
+    whyItMatters:
+      "A link or number in this message has been reported before. Scammers reuse the same accounts on many people.",
+    action: "Stop all contact with the sender.",
+    steps: [
+      "Don't reply, pay, or tap any link in the message.",
+      "Block the number and report it on the Chakshu portal (sancharsaathi.gov.in).",
+    ],
+    learnTopic: "common-scams",
+  },
+  account_threat: {
+    reason: "threatens to block your account or asks for KYC",
+    whyItMatters:
+      "Fake 'account blocked' and 'KYC pending' alerts scare people into opening a link and typing their login or OTP.",
+    action: "Check your account only through the official app.",
+    steps: [
+      "Don't use links or numbers from the message.",
+      "Open your bank or broker's app yourself, or visit the branch.",
+      "Real KYC updates never need your OTP or PIN.",
+    ],
+    learnTopic: "phishing-impersonation",
+  },
+  prize_bait: {
+    reason: "promises a prize or refund",
+    whyItMatters:
+      "Unexpected rewards are bait. Claiming them usually means paying a 'fee' or entering bank details on a fake page.",
+    action: "Ignore prizes you never entered for.",
+    steps: [
+      "Never pay a fee to receive a prize or refund.",
+      "Check refunds only in the official app or website of the company.",
+    ],
+    learnTopic: "common-scams",
+  },
+  remote_access: {
+    reason: "asks you to install a screen-sharing app",
+    whyItMatters:
+      "Apps like AnyDesk or TeamViewer let a stranger watch and control your phone, including your banking and UPI apps.",
+    action: "Never install apps a stranger asks for.",
+    steps: [
+      "Don't install AnyDesk, TeamViewer, or similar apps on request.",
+      "If you already installed one, uninstall it and call your bank right away.",
+    ],
+    learnTopic: "phishing-impersonation",
+  },
+  scam_language: {
+    reason: "uses wording common in scam messages",
+    whyItMatters:
+      "The overall wording is similar to messages that turned out to be scams.",
+    action: "Stop and verify before doing anything.",
+    steps: [
+      "Don't pay or share details until you've checked the source.",
+      "Ask someone you trust to read the message with you.",
+    ],
+    learnTopic: "common-scams",
+  },
 };
 
 const GENERIC_GUIDANCE: SignalGuidance = {
@@ -174,6 +287,9 @@ const GENERIC_GUIDANCE: SignalGuidance = {
 export function getSignalId(signal: AnalysisSignal): SignalId | undefined {
   if (signal.id && signal.id in GUIDANCE) {
     return signal.id as SignalId;
+  }
+  if (signal.id && signal.id in SIGNAL_ALIASES) {
+    return SIGNAL_ALIASES[signal.id];
   }
   const title = signal.title.toLowerCase();
   if (title.includes("guaranteed") || title.includes("returns")) return "guaranteed_returns";
@@ -199,7 +315,7 @@ export function getSignalGuidance(signal: AnalysisSignal): SignalGuidance {
 
 export function isLinkSignal(signal: AnalysisSignal): boolean {
   const id = getSignalId(signal);
-  return id === "suspicious_url";
+  return id !== undefined && LINK_SIGNALS.has(id);
 }
 
 /** "it promises guaranteed returns, pushes you to act fast, and asks for your OTP" */

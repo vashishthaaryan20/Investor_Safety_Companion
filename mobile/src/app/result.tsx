@@ -8,6 +8,7 @@ import {
   Checklist,
   FocusReportCard,
   HighlightedText,
+  ReportCard,
   RiskMeter,
   SignalCard,
 } from "@/components/sangyan/result-parts";
@@ -383,6 +384,8 @@ export default function ResultScreen() {
           </Card>
         </View>
       )}
+
+      {!!result.analysis_id && <ReportCard analysisId={result.analysis_id} text={sourceText} />}
 
       <AppText variant="caption" tone="muted" align="center">
         This check looks for common warning signs and can make mistakes. It is not investment
