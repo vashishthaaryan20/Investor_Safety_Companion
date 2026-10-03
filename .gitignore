@@ -29,3 +29,9 @@ build/
 .expo/
 mobile/android/
 mobile/ios/
+
+# Local-only files
+/venv
+tree_output.txt
+anweshabackend/uploads/
+tempCodeRunnerFile.*
