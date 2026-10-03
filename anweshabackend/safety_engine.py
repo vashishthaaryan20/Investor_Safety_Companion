@@ -523,9 +523,13 @@ def analyze_content(
     score = math.floor(max(_rules_score(signals), engine_score))
     level = level_for(score)
     readable = len(text.strip()) >= MIN_READABLE_CHARS and engine_level != "unknown"
-    status = "success" if signals or readable else "inconclusive"
+    # The image model was trained on websites and leans slightly "phishing" on blurred or
+    # noisy pictures, so a weak resemblance alone must not turn an unreadable image into a verdict.
+    conclusive = [s for s in signals if s["id"] != "phishing_visual_weak"]
+    status = "success" if conclusive or readable else "inconclusive"
     if status == "inconclusive":
         level = "INCONCLUSIVE"
+        signals = conclusive
 
     recommendation = recommendation_for(level)
     if status == "inconclusive" and typed:

@@ -320,6 +320,18 @@ def test_weak_visual_match_is_shown_not_hidden():
     assert any(s["id"] == "phishing_visual_weak" for s in result["signals"])
 
 
+def test_weak_visual_match_alone_does_not_rate_an_unreadable_image():
+    result = analyze_content(
+        "",
+        phishing_label="legitimate",
+        phishing_confidence=60,
+        engine_risk={"level": "unknown", "score": 21.6},
+    )
+    assert result["status"] == "inconclusive"
+    assert result["risk"]["level"] == "INCONCLUSIVE"
+    assert result["signals"] == []
+
+
 def test_phrases_split_across_ocr_lines_still_match():
     wrapped = "Join now for a referral\nbonus. Pay the fees before\nwithdrawing your profit.\nHurry, last\nchance."
     flat = " ".join(wrapped.split())

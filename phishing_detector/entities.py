@@ -3,6 +3,8 @@
 import re
 from urllib.parse import urlsplit, urlunsplit
 
+from .links import scan_links, trim
+
 CONTEXT_CHARS = 100
 
 # ENTITY REGEX PATTERNS
@@ -266,7 +268,7 @@ def clean_entity(value):
     value = value.strip()
 
     # Common punctuation at the end of OCR-extracted entities.
-    value = value.rstrip(".,;:!?)]}>\"'`")
+    value = trim(value)
 
     # Opening brackets that accidentally surround an entity.
     value = value.lstrip("([{<\"'`")
@@ -485,15 +487,25 @@ def extract_entities(text, ocr_tokens=None):
 
     url_spans = []
 
-    for match in URL_PATTERN.finditer(text):
-        value = clean_entity(match.group(0))
-
-        start = match.start()
-        end = start + len(value)
-
-        url_spans.append((start, end))
-
-        add_entity("url", value, start, end)
+    links, candidates = scan_links(text)
+    for link in links:
+        url_spans.append((link["start"], link["end"]))
+        extra = {
+            "normalized": normalize_entity("url", link["normalized"]),
+            "recovered_from_ocr": link["recovered"],
+        }
+        if link["recovered"]:
+            trust = get_entity_ocr_confidence(link["start"], link["end"], ocr_tokens)
+            extra["ocr_confidence"] = min(0.7, trust if trust is not None else 0.7)
+        add_entity("url", link["value"], link["start"], link["end"], extra=extra)
+    for candidate in candidates:
+        add_entity(
+            "url_candidate",
+            candidate["value"],
+            candidate["start"],
+            candidate["end"],
+            extra={"requires_review": True},
+        )
 
     # DOMAINS
 
@@ -758,6 +770,8 @@ def extract_entities(text, ocr_tokens=None):
 def find_urls(text):
     return list(
         dict.fromkeys(
-            e["value"] for e in extract_entities(text) if e["type"] in {"url", "domain"}
+            e["normalized"] if e.get("recovered_from_ocr") else e["value"]
+            for e in extract_entities(text)
+            if e["type"] in {"url", "domain"}
         )
     )

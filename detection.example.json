@@ -2,5 +2,14 @@
   "brands": {},
   "blocklist": [],
   "shorteners": [],
-  "risky_tlds": []
+  "risky_tlds": [],
+  "safe_browsing": {
+    "enabled": false,
+    "timeout_seconds": 2
+  },
+  "fusion": {
+    "suspicious_threshold": 0.4,
+    "dangerous_threshold": 0.8,
+    "weights": {}
+  }
 }

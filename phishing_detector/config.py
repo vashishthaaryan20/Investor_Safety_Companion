@@ -1,12 +1,13 @@
 """config.py - the ONE place for paths, S3 locations, device and hyper-parameters."""
+
 import os
 from pathlib import Path
 
 import torch
 from dotenv import load_dotenv
 
-PKG_DIR = Path(__file__).resolve().parent   # src/phishing-detector/
-SRC_DIR = PKG_DIR.parent                    # src/
+PKG_DIR = Path(__file__).resolve().parent  # src/phishing-detector/
+SRC_DIR = PKG_DIR.parent  # src/
 
 # AWS credentials live in src/.env (NOT in git). boto3 reads these from the environment:
 #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION
@@ -35,14 +36,29 @@ S3_RESULTS_PREFIX = os.getenv("S3_RESULTS_PREFIX", "results/")
 # Local cache - everything pulled from S3 lands here. It is git-ignored.
 CACHE_DIR = PKG_DIR / ".cache"
 MODELS_DIR = CACHE_DIR / "models"
-MODEL_PATH = MODELS_DIR / "model.pth"
+MODEL_PATH = (
+    Path(os.getenv("IMAGE_MODEL_PATH", str(MODELS_DIR / "model.pth")))
+    .expanduser()
+    .resolve()
+)
 # Prefer the dataset beside src/; DATA_DIR can override it with another local path.
-LOCAL_DATA_DIR = SRC_DIR.parent / "data" / "phishing_dataset" / "image"
+LOCAL_DATA_CANDIDATES = (
+    SRC_DIR.parent / "data" / "prepared" / "phishing_images_v1" / "image",
+    SRC_DIR.parent / "data" / "phishing_dataset" / "image",
+    SRC_DIR.parent / "data" / "dataset" / "dataset" / "Phishing dataset" / "image",
+    SRC_DIR.parent / "data" / "dataset" / "Phishing dataset" / "image",
+)
+LOCAL_DATA_DIR = next(
+    (path for path in LOCAL_DATA_CANDIDATES if path.is_dir()),
+    LOCAL_DATA_CANDIDATES[0],
+)
 _data_override = os.getenv("DATA_DIR")
 DATA_DIR = (
     Path(_data_override).expanduser().resolve()
     if _data_override
-    else LOCAL_DATA_DIR if LOCAL_DATA_DIR.is_dir() else CACHE_DIR / "data"
+    else LOCAL_DATA_DIR
+    if LOCAL_DATA_DIR.is_dir()
+    else CACHE_DIR / "data"
 )
 RESULTS_DIR = CACHE_DIR / "results"
 
@@ -52,7 +68,7 @@ CLASS_NAMES = ["legitimate", "phishing"]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Training hyperparameters
-EPOCHS = 1
-BATCH_SIZE = 32
+EPOCHS = int(os.getenv("TRAIN_EPOCHS", "1"))
+BATCH_SIZE = int(os.getenv("TRAIN_BATCH_SIZE", "32"))
 LEARNING_RATE = 1e-4  # 1e-3 is too high for fine-tuning a pretrained ResNet50 with Adam
-LOG_EVERY = 10        # print training progress every N batches
+LOG_EVERY = 10  # print training progress every N batches

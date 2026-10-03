@@ -39,55 +39,101 @@ def detect(text, path=None):
         )
 
 
-def train(csv_path, output):
-    import csv
+def train(csv_path, output, overwrite=False, kind="text"):
+    if kind not in {"text", "url"}:
+        raise ValueError("Unknown model kind")
+    import hashlib
     import json
     from pathlib import Path
 
     import joblib
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
-    from sklearn.metrics import classification_report, confusion_matrix
-    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import classification_report
     from sklearn.pipeline import make_pipeline
 
-    with open(csv_path, encoding="utf-8", newline="") as stream:
-        rows = list(csv.DictReader(stream))
-    labels = {}
-    for row in rows:
-        text, label = row["text"].strip(), row["label"]
-        if not text or label not in {"legitimate", "phishing"}:
-            raise ValueError("Expected nonempty text and legitimate/phishing labels")
-        if text in labels and labels[text] != label:
-            raise ValueError("Conflicting labels for duplicate text")
-        labels[text] = label
-    x_train, x_test, y_train, y_test = train_test_split(
-        list(labels),
-        list(labels.values()),
-        test_size=0.25,
-        random_state=42,
-        stratify=list(labels.values()),
-    )
+    from .datasets import load_text_data
+    from .metrics import binary_metrics
+    from .progress import stage
+
+    output = Path(output)
+    if output.exists() and not overwrite:
+        raise FileExistsError(
+            "Choose a new model output path or explicitly pass --overwrite"
+        )
+    stage(f"{kind}-training", 1, 8, "Load and validate prepared text data")
+    if kind == "url":
+        from .url_ml import load_url_data
+
+        records, audit = load_url_data(csv_path)
+    else:
+        records, audit = load_text_data(csv_path)
+    parts = {
+        split: [r for r in records if r["split"] == split]
+        for split in ("train", "val", "test")
+    }
+    stage(f"{kind}-training", 2, 8, f"Split integrity passed: {audit['counts']}")
+    stage(f"{kind}-training", 3, 8, "Build TF-IDF and logistic regression pipeline")
     model = make_pipeline(
-        TfidfVectorizer(ngram_range=(1, 2), max_features=50000),
+        TfidfVectorizer(
+            analyzer="char" if kind == "url" else "word",
+            ngram_range=(3, 5) if kind == "url" else (1, 2),
+            lowercase=kind != "url",
+            max_features=50000,
+        ),
         LogisticRegression(max_iter=1000, class_weight="balanced", random_state=42),
     )
-    model.fit(x_train, y_train)
-    predictions = model.predict(x_test)
+    stage(
+        f"{kind}-training", 4, 8, f"Fit using {len(parts['train'])} training rows only"
+    )
+    model.fit([r["text"] for r in parts["train"]], [r["label"] for r in parts["train"]])
+    metrics = {}
+    for number, split in ((5, "val"), (6, "test")):
+        stage(
+            f"{kind}-training",
+            number,
+            8,
+            f"Evaluate {split} ({len(parts[split])} rows)",
+        )
+        truth = [r["label"] for r in parts[split]]
+        predictions = list(model.predict([r["text"] for r in parts[split]]))
+        metrics[split] = binary_metrics(truth, predictions)
+    test_truth = [r["label"] for r in parts["test"]]
+    test_predictions = list(model.predict([r["text"] for r in parts["test"]]))
     report = {
+        "model_kind": kind,
         "classification": classification_report(
-            y_test, predictions, output_dict=True, zero_division=0
+            test_truth, test_predictions, output_dict=True, zero_division=0
         ),
-        "confusion_matrix": confusion_matrix(
-            y_test, predictions, labels=["legitimate", "phishing"]
-        ).tolist(),
+        "confusion_matrix": metrics["test"]["confusion_matrix"],
         "label_order": ["legitimate", "phishing"],
-        "train_count": len(x_train),
-        "test_count": len(x_test),
+        "train_count": len(parts["train"]),
+        "val_count": len(parts["val"]),
+        "test_count": len(parts["test"]),
+        "metrics": metrics,
+        "dataset_audit": audit,
+        "dataset_sha256": hashlib.sha256(
+            json.dumps(records, sort_keys=True).encode()
+        ).hexdigest(),
+        "calibration": "Not calibrated; fusion thresholds require separate evaluation",
     }
-    joblib.dump(model, output)
+    stage(f"{kind}-training", 7, 8, f"Save model and metrics to {output.resolve()}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_name(output.name + ".tmp")
+    try:
+        joblib.dump(model, temporary)
+        temporary.replace(output)
+    finally:
+        temporary.unlink(missing_ok=True)
     Path(str(output) + ".metrics.json").write_text(
         json.dumps(report, indent=2), encoding="utf-8"
+    )
+    load_model.cache_clear()
+    stage(
+        f"{kind}-training",
+        8,
+        8,
+        f"Finished; activate with {kind.upper()}_MODEL_PATH and restart the API",
     )
     return report
 
@@ -98,5 +144,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("csv_path")
     parser.add_argument("output")
+    parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
-    print(train(args.csv_path, args.output))
+    print(train(args.csv_path, args.output, overwrite=args.overwrite))

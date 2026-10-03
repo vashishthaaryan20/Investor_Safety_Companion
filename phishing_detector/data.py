@@ -1,9 +1,12 @@
 """data.py - dataset loaders (train / val / test). The dataset itself lives in S3."""
+
+from pathlib import Path
+
 from torch.utils.data import DataLoader
 from torchvision import datasets
 
 from . import storage
-from .config import DATA_DIR, CLASS_NAMES, BATCH_SIZE
+from .config import BATCH_SIZE, CLASS_NAMES, DATA_DIR
 from .model import get_transform
 
 
@@ -20,14 +23,12 @@ def get_data_loaders(batch_size=BATCH_SIZE):
 
     transform = get_transform()
     print("[data] Indexing images (can take a moment)...")
-    train_data = datasets.ImageFolder(root=DATA_DIR / "train", transform=transform)
-    val_data = datasets.ImageFolder(root=DATA_DIR / "val", transform=transform)
+    train_data = _image_folder(DATA_DIR / "train", transform)
+    val_data = _image_folder(DATA_DIR / "val", transform)
 
     classes = train_data.classes
     print(f"[data] Classes: {classes}")
     print(f"[data] Train images: {len(train_data)} | Val images: {len(val_data)}")
-    if classes != CLASS_NAMES:
-        print(f"[data] WARNING: classes {classes} differ from CLASS_NAMES {CLASS_NAMES} in config.py - update it!")
 
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
@@ -39,6 +40,26 @@ def get_test_loader(batch_size=BATCH_SIZE):
     test_dir = DATA_DIR / "test"
     if not test_dir.exists():
         return None
-    test_data = datasets.ImageFolder(root=test_dir, transform=get_transform())
+    test_data = _image_folder(test_dir, get_transform())
     print(f"[data] Test images: {len(test_data)}")
     return DataLoader(test_data, batch_size=batch_size, shuffle=False)
+
+
+def _image_folder(path, transform):
+    expected = {name: index for index, name in enumerate(CLASS_NAMES)}
+    actual = {p.name for p in Path(path).iterdir() if p.is_dir()}
+    if actual != set(expected):
+        raise ValueError(
+            f"{path}: expected class folders {sorted(expected)}, got {sorted(actual)}"
+        )
+    data = datasets.ImageFolder(
+        path,
+        transform=transform,
+        is_valid_file=lambda value: (
+            Path(value).suffix.lower()
+            in {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp", ".avif"}
+        ),
+    )
+    if data.class_to_idx != expected:
+        raise ValueError(f"Class index mismatch in {path}")
+    return data

@@ -1,0 +1,14 @@
+{
+  "image": {
+    "data": "../data/prepared/phishing_images_v1/image",
+    "epochs": 10,
+    "batch_size": 8
+  },
+  "url": {
+    "data": "../data/prepared/phishing_urls_v1"
+  },
+  "text": {
+    "data": "../data/prepared/phishing_messages_v1"
+  },
+  "output": "../models/training-v1"
+}

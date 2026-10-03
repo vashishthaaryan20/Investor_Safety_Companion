@@ -52,7 +52,7 @@ def url_detector(entities, brands, risky_tlds=(), shorteners=()):
     for e in entities:
         if e["type"] not in {"url", "domain"}:
             continue
-        host = hostname(e["value"])
+        host = hostname(e.get("normalized", e["value"]))
         if not host:
             continue
 
@@ -172,7 +172,7 @@ def brand_detector(entities, brands):
     for brand in (e for e in entities if e["type"] == "brand"):
         domains = brands.get(brand["brand_name"].lower(), [])
         for link in (e for e in entities if e["type"] in {"url", "domain"}):
-            host = hostname(link["value"])
+            host = hostname(link.get("normalized", link["value"]))
             # Mere co-occurrence is weaker than an authenticated sender claim.
             if domains and host and not any(belongs(host, d) for d in domains):
                 out.findings.append(
@@ -194,7 +194,7 @@ def blocklist_detector(entities, entries):
             kind, value = entry["type"], entry["value"]
             hit = kind == e["type"] and value == e["normalized"]
             if kind == "domain" and e["type"] in {"url", "domain"}:
-                hit = belongs(hostname(e["value"]), value)
+                hit = belongs(hostname(e.get("normalized", e["value"])), value)
             if hit:
                 trusted = confidence(e) >= 0.8
                 out.findings.append(
