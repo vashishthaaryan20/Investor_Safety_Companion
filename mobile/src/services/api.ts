@@ -1,6 +1,7 @@
 import { fetch } from "expo/fetch";
-import { File } from "expo-file-system";
+import { File as ExpoFile } from "expo-file-system";
 import * as FileSystem from "expo-file-system/legacy";
+import { Platform } from "react-native";
 
 import { DEFAULT_FOCUS, type AnalysisFocus } from "@/constants/analysis-focus";
 
@@ -220,14 +221,20 @@ export async function sendScreenshotForAnalysis(
   captureSource = "scan",
   focus: AnalysisFocus = DEFAULT_FOCUS
 ): Promise<AnalysisResult> {
-  const imageFile = new File(imageUri);
   const formData = new FormData();
-
-  formData.append(
-    "image",
-    imageFile as unknown as Blob,
-    fileName || "screenshot.jpg"
-  );
+  if (Platform.OS === "web") {
+    // ImagePicker returns a browser URI; Expo's filesystem File is native-only.
+    const imageResponse = await globalThis.fetch(imageUri);
+    if (!imageResponse.ok) {
+      throw new Error("Unable to read the selected image. Please select it again.");
+    }
+    const blob = await imageResponse.blob();
+    const imageBlob = blob.type || !mimeType ? blob : new Blob([blob], { type: mimeType });
+    formData.append("image", imageBlob, fileName || "screenshot.jpg");
+  } else {
+    const imageFile = new ExpoFile(imageUri);
+    formData.append("image", imageFile as unknown as Blob, fileName || "screenshot.jpg");
+  }
 
   void mimeType;
 
@@ -254,4 +261,17 @@ export async function sendTextForAnalysis(
     },
     signal
   );
+}
+
+export async function submitFeedback(
+  analysisId: string,
+  kind: "wrong_verdict" | "report_scam",
+  evidenceText: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ analysis_id: analysisId, kind, evidence_text: evidenceText }),
+  });
+  if (!response.ok) throw new Error("Unable to submit feedback. Please retry.");
 }

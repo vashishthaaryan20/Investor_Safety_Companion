@@ -36,7 +36,14 @@ S3_RESULTS_PREFIX = os.getenv("S3_RESULTS_PREFIX", "results/")
 CACHE_DIR = PKG_DIR / ".cache"
 MODELS_DIR = CACHE_DIR / "models"
 MODEL_PATH = MODELS_DIR / "model.pth"
-DATA_DIR = CACHE_DIR / "data"        # contains train/ val/ test/ after download
+# Prefer the dataset beside src/; DATA_DIR can override it with another local path.
+LOCAL_DATA_DIR = SRC_DIR.parent / "data" / "phishing_dataset" / "image"
+_data_override = os.getenv("DATA_DIR")
+DATA_DIR = (
+    Path(_data_override).expanduser().resolve()
+    if _data_override
+    else LOCAL_DATA_DIR if LOCAL_DATA_DIR.is_dir() else CACHE_DIR / "data"
+)
 RESULTS_DIR = CACHE_DIR / "results"
 
 # ImageFolder sorts class folders alphabetically, so index 0 = legitimate, 1 = phishing
@@ -45,7 +52,7 @@ CLASS_NAMES = ["legitimate", "phishing"]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Training hyperparameters
-EPOCHS = 2
+EPOCHS = 1
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-4  # 1e-3 is too high for fine-tuning a pretrained ResNet50 with Adam
 LOG_EVERY = 10        # print training progress every N batches

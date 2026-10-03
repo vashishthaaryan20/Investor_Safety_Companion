@@ -1,68 +1,130 @@
+"""HTTP transport. Start: python -m uvicorn main:app --reload"""
+
 import base64
-import importlib.util
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from pydantic import BaseModel
-from phishing_detector.ocr import analyze_image
+import binascii
+import logging
+import os
+from threading import Lock
+from typing import Annotated, Literal
+from uuid import UUID
 
-app = FastAPI()
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
-# Matches the payload from saveScreenshotAsJson()
+from phishing_detector.feedback import record_feedback
+from phishing_detector.service import analyze_image, analyze_text
+
+app = FastAPI(title="Screenshot scam screening")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv(
+            "WEB_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081"
+        ).split(",")
+        if origin.strip()
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+analysis_lock = Lock()
+log = logging.getLogger(__name__)
+
+
 class ImagePayload(BaseModel):
-    image: str
+    image: str = Field(min_length=1, max_length=14 * 1024 * 1024)
 
 
-# -------------------------------------------------------------------
-# Endpoint 1: Handles saveScreenshotAsJson() [Base64 JSON]
-# -------------------------------------------------------------------
+class TextPayload(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+
+
+class FeedbackPayload(BaseModel):
+    analysis_id: UUID
+    kind: Literal["wrong_verdict", "report_scam"]
+    note: str = Field(default="", max_length=2000)
+    evidence_text: str = Field(default="", max_length=20000)
+
+
+def process_image(data):
+    from io import BytesIO
+
+    from PIL import Image, UnidentifiedImageError
+
+    if not data or len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            413 if data else 400, "Image must be nonempty and at most 10 MiB"
+        )
+    try:
+        with Image.open(BytesIO(data)) as image:
+            if image.width * image.height > 20_000_000:
+                raise HTTPException(413, "Image exceeds 20 million pixels")
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(400, "Invalid or unsupported image")
+    try:
+        with analysis_lock:
+            return analyze_image(data)
+    except Exception:
+        log.exception("Image analysis failed")
+        raise HTTPException(503, "Analysis unavailable; please retry")
+
+
+@app.get("/api/v1/health")
+def health_check():
+    """Process liveness only; does not claim OCR or model readiness."""
+    return {"status": "ok", "message": "SANGYAN Shield API is running"}
+
+
+@app.post("/api/v1/analyze-text")
+def analyze_pasted_text(payload: TextPayload):
+    if not payload.text.strip():
+        raise HTTPException(422, "Text must contain non-whitespace characters")
+    try:
+        result = analyze_text(payload.text)
+    except Exception:
+        log.exception("Text analysis failed")
+        raise HTTPException(503, "Analysis unavailable; please retry")
+    result["analysis_mode"] = "pasted_text"
+    return result
+
+
 @app.post("/api/v1/save-image-json")
-async def save_image_json(payload: ImagePayload):
+def save_image_json(payload: ImagePayload):
+    value = payload.image
+    if value.startswith("data:"):
+        header, separator, value = value.partition(",")
+        if (
+            not separator
+            or not header.startswith("data:image/")
+            or not header.endswith(";base64")
+        ):
+            raise HTTPException(400, "Invalid image data URI")
     try:
-        base64_str = payload.image
-        
-        # Remove metadata header if Expo included one (e.g., "data:image/jpeg;base64,...")
-        if "," in base64_str:
-            base64_str = base64_str.split(",")[1]
-
-        # Decode Base64 into raw image bytes
-        image_bytes = base64.b64decode(base64_str)
-
-        # Run your OCR / analysis function
-        analysis = analyze_image(image_bytes)
-
-        return {
-            "message": "Image processed successfully",
-            "saved_to": "memory",
-            "result": analysis
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        data = base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(400, "Invalid base64 image")
+    return {
+        "message": "Image processed successfully",
+        "saved_to": "memory",
+        "result": process_image(data),
+    }
 
 
-# -------------------------------------------------------------------
-# Endpoint 2: Handles sendScreenshotForAnalysis() [FormData upload]
-# -------------------------------------------------------------------
 @app.post("/api/v1/analyze")
-async def analyze_screenshot(image: UploadFile = File(...)):
+async def analyze_screenshot(image: Annotated[UploadFile, File()]):
     try:
-        # Read the raw binary bytes directly from the uploaded file
-        image_bytes = await image.read()
+        data = await image.read(MAX_IMAGE_BYTES + 1)
+    finally:
+        await image.close()
+    return await run_in_threadpool(process_image, data)
 
-        # Run your analysis
-        analysis_data = analyze_image(image_bytes)
 
-        # Structure response to match her TypeScript AnalysisResult interface
-        return {
-            "status": "success",
-            "extracted_text": analysis_data.get("extracted_text", ""),
-            "detected_urls": analysis_data.get("detected_urls", []),
-            "analysis_mode": "ocr",
-            "risk": {
-                "level": analysis_data.get("risk_level", "low"),
-                "score": analysis_data.get("risk_score", 0)
-            },
-            "signals": analysis_data.get("signals", []),
-            "explanation": analysis_data.get("explanation", "Analysis complete."),
-            "verification": analysis_data.get("verification", [])
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.post("/api/v1/feedback", status_code=201)
+def feedback(payload: FeedbackPayload):
+    return record_feedback(
+        str(payload.analysis_id), payload.kind, payload.note, payload.evidence_text
+    )
