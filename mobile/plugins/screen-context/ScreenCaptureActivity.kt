@@ -10,8 +10,8 @@ import android.view.WindowInsets
 
 /**
  * Invisible activity started from the "Analyze screen" tile. It asks Android for one-time
- * screen-capture consent, hands the token to ScreenCaptureService, then opens the app with
- * the outcome. It stays transparent and in its own task during capture, so the app the
+ * screen-capture consent, hands the token to ScreenCaptureService, then lets the user pick
+ * the area to check (ScreenSelectionActivity), or opens the app with the error. It stays transparent and in its own task during capture, so the app the
  * user was viewing is what ends up in the picture.
  */
 class ScreenCaptureActivity : Activity() {
@@ -98,7 +98,14 @@ class ScreenCaptureActivity : Activity() {
 
   private fun onOutcome(outcome: Map<String, String>) {
     if (isFinishing) return
-    ScreenContextStore.openApp(this, mapOf("source" to "tile") + outcome)
+    val capture = outcome["capture"]
+    val selecting = capture != null && try {
+      startActivity(Intent(this, ScreenSelectionActivity::class.java).putExtra(ScreenSelectionActivity.EXTRA_CAPTURE, capture))
+      true
+    } catch (e: Exception) {
+      false
+    }
+    if (!selecting) ScreenContextStore.openApp(this, mapOf("source" to "tile") + outcome)
     finish()
     @Suppress("DEPRECATION")
     overridePendingTransition(0, 0)

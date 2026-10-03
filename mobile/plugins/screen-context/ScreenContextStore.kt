@@ -17,6 +17,7 @@ import java.util.UUID
 object ScreenContextStore {
   private const val DIRECTORY = "screen-context"
   private const val SCHEME = "__SCHEME__"
+  private val CAPTURE_ID = Regex("^[a-f0-9]{32}$")
 
   /** Only the newest capture is ever needed; older ones may hold sensitive content. */
   fun newFile(context: Context, extension: String): Pair<String, File> {
@@ -25,6 +26,17 @@ object ScreenContextStore {
     directory.mkdirs()
     val id = UUID.randomUUID().toString().replace("-", "")
     return id to File(directory, "$id.$extension")
+  }
+
+  /** A capture written by newFile, or null if the id is malformed or the file is gone. */
+  fun existingFile(context: Context, id: String, extension: String): File? {
+    if (!CAPTURE_ID.matches(id)) return null
+    val file = File(File(context.cacheDir, DIRECTORY), "$id.$extension")
+    return file.takeIf { it.isFile }
+  }
+
+  fun clear(context: Context) {
+    File(context.cacheDir, DIRECTORY).listFiles()?.forEach { it.delete() }
   }
 
   fun openApp(context: Context, params: Map<String, String>) {

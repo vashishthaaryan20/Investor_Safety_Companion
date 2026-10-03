@@ -1,6 +1,7 @@
 /**
  * Screen context: check content from other apps without browsing the gallery.
- *  - "Analyze screen" Quick Settings tile -> user-consented one-frame MediaProjection capture.
+ *  - "Analyze screen" Quick Settings tile -> user-consented one-frame MediaProjection capture,
+ *    then the user selects the area to check (or the whole screen).
  *  - Share target ("Check with SANGYAN Shield") for images and text.
  * Both hand off to the app's /screen-context screen. Native sources live in
  * ./screen-context and are copied in during `expo prebuild` (not available in Expo Go).
@@ -19,6 +20,7 @@ const SOURCES = [
   "ScreenContextStore.kt",
   "ScreenCaptureActivity.kt",
   "ScreenCaptureService.kt",
+  "ScreenSelectionActivity.kt",
   "ShareReceiverActivity.kt",
   "ScreenContextTileService.kt",
   "AddTileActivity.kt",
@@ -31,6 +33,11 @@ const STRINGS = {
   sc_channel_name: "Screen check",
   sc_notification_title: "Checking this screen",
   sc_notification_text: "SANGYAN Shield is taking one picture of your screen.",
+  sc_select_hint: "Drag a box around the message",
+  sc_select_check: "Check selected",
+  sc_select_whole: "Whole screen",
+  sc_select_cancel: "Cancel",
+  sc_select_too_small: "Drag a box over the message first",
 };
 
 const PERMISSIONS = [
@@ -43,6 +50,7 @@ const CONFIG_CHANGES =
   "keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|fontScale|density";
 
 const TRANSLUCENT = "@android:style/Theme.Translucent.NoTitleBar";
+const FULLSCREEN_DARK = "@android:style/Theme.Material.NoActionBar.Fullscreen";
 
 // Corner brackets around a dot: "look at this screen".
 const TILE_ICON_PATH =
@@ -135,6 +143,13 @@ const withScreenContextManifest = (config) =>
 
     app.activity = replaceByName(app.activity, {
       $: { "android:name": ".screencontext.ScreenCaptureActivity", ...hiddenActivity },
+    });
+    app.activity = replaceByName(app.activity, {
+      $: {
+        "android:name": ".screencontext.ScreenSelectionActivity",
+        ...hiddenActivity,
+        "android:theme": FULLSCREEN_DARK,
+      },
     });
     app.activity = replaceByName(app.activity, {
       $: {

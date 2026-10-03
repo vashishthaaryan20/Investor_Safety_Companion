@@ -37,10 +37,18 @@ existing check pipeline (`/analyzing` → `/api/v1/analyze` or `/api/v1/analyze-
    - scales the frame to at most 2560 px, saves it as JPEG in
      `cacheDir/screen-context/<random id>.jpg`, and releases the projection, virtual display,
      reader and thread straight away.
-5. The service passes the outcome back to the activity, which is still in the foreground. The
-   activity opens `sangyanshield://screen-context?source=tile&kind=image&capture=<id>` and
-   finishes. Opening the app from the activity avoids Android's limits on starting activities
+5. The service passes the outcome back to the activity, which is still in the foreground. On
+   success it opens `ScreenSelectionActivity`; errors open the app straight away. Opening the
+   next screen from the foreground activity avoids Android's limits on starting activities
    from the background.
+6. `ScreenSelectionActivity` shows the capture and lets the user drag a box around the message:
+   - **Check selected** crops to the box at full resolution, saves the crop as a new capture
+     (which deletes the full screenshot) and opens
+     `sangyanshield://screen-context?source=tile&kind=image&capture=<id>`.
+   - **Whole screen** opens the app with the full capture.
+   - **Cancel** or Back deletes the capture and returns to the app the user was in.
+   A box smaller than 32 dp on either side is refused with a hint. If the capture file is
+   gone, the app opens with `error=missing`.
 
 ## Flow: share target
 
@@ -99,7 +107,7 @@ existing check pipeline (`/analyzing` → `/api/v1/analyze` or `/api/v1/analyze-
 ## Privacy and logging
 
 - Consent is asked every time. There is no continuous capture or background monitoring.
-  One frame is taken per tap.
+  One frame is taken per tap. When the user selects an area, only that area is uploaded.
 - The capture notification is shown for the brief moment the projection is active.
 - Native code logs only exception class names.
 - The backend logs source, focus, content type and risk level. OCR text is printed only when
