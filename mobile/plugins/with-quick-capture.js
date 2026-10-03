@@ -81,9 +81,10 @@ class ${TILE_CLASS} : TileService() {
     if (now - lastClickAt < CLICK_DEBOUNCE_MS) return
     lastClickAt = now
 
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(DEEP_LINK)).apply {
-      setPackage(packageName)
-      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val intent = Intent().apply {
+      setClassName(packageName, "${pkg}.CaptureActivity")
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    
     }
     if (isLocked) {
       unlockAndRun { launch(intent) }

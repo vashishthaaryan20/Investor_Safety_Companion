@@ -44,7 +44,8 @@
       ],
       "./plugins/with-quick-capture",
       "./plugins/with-android-build-memory",
-      "./plugins/with-font-scale-config"
+      "./plugins/with-font-scale-config",
+      "./plugins/with-screen-select"
     ],
     "experiments": {
       "typedRoutes": true,
