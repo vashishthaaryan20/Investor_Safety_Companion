@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { PickResultNotice } from "@/components/sangyan/feedback";
@@ -18,6 +18,7 @@ import {
 import { Colors, Layout, Radius, Space, Typography } from "@/constants/design";
 import {
   pickImage as pickImageFrom,
+  recoverPendingImage,
   type ImageSource,
   type PickResult,
 } from "@/services/image-picker";
@@ -90,6 +91,21 @@ export default function ScanScreen() {
       setSubmitting(false);
     }, [])
   );
+
+  useEffect(() => {
+    recoverPendingImage().then((recovered) => {
+      if (!recovered) return;
+      updateDraft({
+        mode: "image",
+        imageUri: recovered.uri,
+        imageName: recovered.name,
+        imageType: recovered.type,
+        captureSource: "scan",
+      });
+    });
+    // Runs once per screen instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pickImage = async (source: ImageSource) => {
     if (picking) return;

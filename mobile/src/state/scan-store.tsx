@@ -25,7 +25,7 @@ export interface ScanDraft {
   imageName: string;
   imageType: string;
   text: string;
-  /** Where the content came from: scan, quick-capture(-tile|-shortcut), screen-context-tile, screen-context-share. */
+  /** Where the content came from: scan, screen-context-tile, screen-context-share. */
   captureSource?: string;
   /** Question picked on the screen-context screen; the backend answers it alongside the usual check. */
   analysisFocus?: AnalysisFocus;

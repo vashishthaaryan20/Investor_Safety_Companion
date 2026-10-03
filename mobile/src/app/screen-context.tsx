@@ -222,7 +222,7 @@ export default function ScreenContextScreen() {
 
   const chooseFromGallery = () => {
     resetDraft("image");
-    router.replace({ pathname: "/quick-capture", params: { action: "gallery" } });
+    router.replace("/scan");
   };
 
   const submit = () => {

@@ -52,7 +52,6 @@
           "microphonePermission": false
         }
       ],
-      "./plugins/with-quick-capture",
       "./plugins/with-screen-context",
       "./plugins/with-network-security",
       "./plugins/with-android-build-memory",

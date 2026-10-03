@@ -78,7 +78,7 @@ existing check pipeline (`/analyzing` → `/api/v1/analyze` or `/api/v1/analyze-
 - **Explicit confirmation:** nothing is uploaded until the user taps "Send for checking".
   Cancel, the close button and hardware Back delete the capture.
 - **Capture again** (tile only): closes the app so the user can return to the screen and tap
-  the tile again. **Choose from gallery** goes to Quick Capture.
+  the tile again. **Choose from gallery** goes to the Scan screen.
 - **Errors:** one full-screen state per failure: denied, protected screen, timeout, sharing
   stopped, unsupported, unreadable, empty, expired. Each says nothing was sent and offers a
   way forward. A protected screen suggests copy-paste or sharing as text instead.

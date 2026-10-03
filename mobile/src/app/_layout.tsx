@@ -8,7 +8,7 @@ import { ScanProvider } from '@/state/scan-store';
 
 SplashScreen.preventAutoHideAsync();
 
-// Deep links (Quick Settings tiles, app shortcuts, share sheet) open on top of the tabs, so Back leads home.
+// Deep links (Analyze screen tile, share sheet) open on top of the tabs, so Back leads home.
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -57,10 +57,6 @@ export default function RootLayout() {
           <Stack.Screen name="learn/[topic]" options={{ title: 'Learn & Protect' }} />
           <Stack.Screen name="emergency" options={{ title: 'Emergency help' }} />
           {/* Not singular: removing an older instance from under a result desyncs the native stack. */}
-          <Stack.Screen
-            name="quick-capture"
-            options={{ title: 'Quick Capture', animation: 'slide_from_bottom' }}
-          />
           <Stack.Screen
             name="screen-context"
             options={{ title: 'Check with SANGYAN', animation: 'slide_from_bottom' }}

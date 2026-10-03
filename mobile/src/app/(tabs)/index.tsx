@@ -62,67 +62,6 @@ const SCAM_SIGNS = [
   },
 ] as const;
 
-const TILE_STEPS = [
-  "Swipe down twice from the top of the screen",
-  "Tap the pencil (Edit) button",
-  "Drag the “Scan for scam” tile into your tiles",
-];
-
-function QuickCaptureCard({ onOpen }: { onOpen: () => void }) {
-  const [showSetup, setShowSetup] = useState(false);
-  const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
-  return (
-    <Card style={styles.cardGap}>
-      <View style={styles.rowTop}>
-        <IconBadge icon="flash" color={Colors.secondary} background={Colors.secondarySoft} size={44} />
-        <View style={styles.flex}>
-          <AppText variant="subheading" tone="ink" accessibilityRole="header">
-            Quick Capture
-          </AppText>
-          <AppText variant="caption" tone="muted">
-            {Platform.OS === "android"
-              ? "Check a screenshot straight from Quick Settings or by long-pressing the app icon."
-              : "Pick a screenshot and check it in two taps."}
-          </AppText>
-        </View>
-      </View>
-      <AppButton label="Open Quick Capture" icon="flash-outline" variant="secondary" onPress={onOpen} />
-      {Platform.OS === "android" && (
-        <>
-          <TextLink
-            label={showSetup ? "Hide setup" : "Add the Quick Settings tile"}
-            trailingIcon={showSetup ? "chevron-up" : "chevron-down"}
-            accessibilityState={{ expanded: showSetup }}
-            onPress={() => setShowSetup((value) => !value)}
-          />
-          {showSetup && (
-            <View style={styles.setup}>
-              {TILE_STEPS.map((step, index) => (
-                <View key={step} style={styles.rowTop}>
-                  <View style={styles.stepNumber}>
-                    <AppText variant="caption" tone="brand" style={styles.bold}>
-                      {index + 1}
-                    </AppText>
-                  </View>
-                  <AppText variant="body" style={styles.flex}>
-                    {step}
-                  </AppText>
-                </View>
-              ))}
-              <AppText variant="caption" tone="muted">
-                {inExpoGo
-                  ? "The tile and app shortcuts appear only in the installed SANGYAN Shield app, not in Expo Go."
-                  : "You can also long-press the SANGYAN Shield icon and choose “Scan screenshot”."}
-              </AppText>
-            </View>
-          )}
-        </>
-      )}
-    </Card>
-  );
-}
-
 const SCREEN_TILE_STEPS = [
   "Swipe down twice from the top of the screen",
   "Tap the pencil (Edit) button",
@@ -261,8 +200,6 @@ export default function HomeScreen() {
           onPress={() => startScan("text")}
         />
       </View>
-
-      <QuickCaptureCard onOpen={() => router.push("/quick-capture")} />
 
       {Platform.OS === "android" && <OtherAppsCard />}
 
