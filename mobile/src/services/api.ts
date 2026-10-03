@@ -6,6 +6,7 @@ import { Platform } from "react-native";
 import { DEFAULT_FOCUS, type AnalysisFocus } from "@/constants/analysis-focus";
 import apiConfig from "@/constants/api-config.json";
 
+import { ContractError, parseAnalysisResult } from "./analysis-contract";
 import { clearImageJSON, createImageJSON, getImageJSONString, storeImageJSON } from "./imageJson";
 
 /**
@@ -31,6 +32,36 @@ export interface AnalysisSignal {
   title: string;
   description: string;
   evidence?: string[];
+  /** "engine" for detection-engine findings, "investor_rules" for SANGYAN's investor-safety rules. */
+  origin?: string;
+}
+
+export interface AnalysisRisk {
+  level: string;
+  score: number;
+  /** 100 from contract 1.0; results saved earlier used a 1-10 scale and have no score_max. */
+  score_max?: number;
+  /** How reliably the input was read (0-1). Not the probability that it is a scam. */
+  confidence?: number;
+  confidence_basis?: "ocr_read_quality" | "typed_text";
+  engine_level?: string;
+  engine_score?: number;
+}
+
+export interface AnalysisRecommendation {
+  action: string;
+  message: string;
+}
+
+export interface AnalysisMetadata {
+  processing_time_ms?: number;
+  ocr_time_ms?: number | null;
+  engine_time_ms?: number;
+  engine_version?: string;
+  contract_version?: string;
+  source?: string;
+  /** Checks that could not run for this result, in plain words. */
+  unavailable_checks?: string[];
 }
 
 /** Answer to the question picked before analysis; detected and uncertain points are kept apart. */
@@ -50,13 +81,12 @@ export interface AnalysisResult {
   extracted_text?: string;
   detected_urls: string[];
   analysis_mode?: string;
-  risk: {
-    level: string;
-    score: number;
-  };
+  risk: AnalysisRisk;
   signals: AnalysisSignal[];
   explanation: string;
   verification: string[];
+  recommendation?: AnalysisRecommendation;
+  metadata?: AnalysisMetadata;
   focus_report?: FocusReport;
 }
 
@@ -107,6 +137,7 @@ function errorKindForStatus(status: number): ApiErrorKind {
   if (status === 413) return "too_large";
   if (status === 429) return "rate_limited";
   if (status === 400 || status === 415 || status === 422) return "invalid_input";
+  if (status === 504) return "timeout";
   return "server";
 }
 
@@ -175,18 +206,12 @@ async function request(
 }
 
 function asAnalysisResult(data: unknown): AnalysisResult {
-  const result = data as AnalysisResult;
-  if (
-    typeof result !== "object" ||
-    result === null ||
-    !result.risk ||
-    !Array.isArray(result.signals) ||
-    !Array.isArray(result.verification) ||
-    !Array.isArray(result.detected_urls)
-  ) {
-    throw new ApiError("bad_response", "The server reply is missing analysis details.");
+  try {
+    return parseAnalysisResult(data);
+  } catch (error) {
+    if (error instanceof ContractError) throw new ApiError("bad_response", error.message);
+    throw error;
   }
-  return result;
 }
 
 export async function convertScreenshotToJSON(imageUri: string): Promise<string> {

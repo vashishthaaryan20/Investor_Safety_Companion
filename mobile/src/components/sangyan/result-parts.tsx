@@ -14,16 +14,16 @@ import { submitFeedback, type AnalysisSignal, type FocusReport } from "@/service
 
 import { AppButton, AppText, BulletList, Card, TextLink, type IconName } from "./ui";
 
-export function RiskMeter({ score, color }: { score: number; color: string }) {
-  const filled = Math.max(1, Math.min(10, Math.round(score)));
+export function RiskMeter({ score, color }: { score: { value: number; max: number }; color: string }) {
+  const filled = Math.max(1, Math.min(10, Math.round((score.value / score.max) * 10)));
 
   return (
     <View
       style={styles.meter}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={`Risk score ${filled} out of 10`}
-      accessibilityValue={{ min: 0, max: 10, now: filled }}
+      accessibilityLabel={`Risk score ${score.value} out of ${score.max}`}
+      accessibilityValue={{ min: 0, max: score.max, now: score.value }}
     >
       {Array.from({ length: 10 }, (_, index) => (
         <View

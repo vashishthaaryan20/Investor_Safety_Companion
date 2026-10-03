@@ -1,0 +1,119 @@
+{
+  "about": "Hand-written, labeled smoke set for Milestone 8. Expectations were written before running the engine and must not be changed to make a run pass. It is too small and too close to the rules' vocabulary to measure accuracy; it checks that the pipeline behaves as intended end to end.",
+  "levels": ["LOW_ATTENTION", "MODERATE", "ELEVATED", "HIGH_ATTENTION"],
+  "cases": [
+    {
+      "id": "legit-sip",
+      "group": "legitimate",
+      "label": "legitimate",
+      "text": "Your SIP of Rs 5,000 in XYZ Flexi Cap Fund has been processed on 05-Oct. NAV and units will be updated in your next account statement.",
+      "expect": {"status": "success", "max_level": "LOW_ATTENTION"}
+    },
+    {
+      "id": "legit-agm",
+      "group": "legitimate",
+      "label": "legitimate",
+      "text": "Reminder: The AGM of ABC Ltd will be held on 12 November. Shareholders can read the annual report on the company's website.",
+      "expect": {"status": "success", "max_level": "LOW_ATTENTION"}
+    },
+    {
+      "id": "legit-market",
+      "group": "legitimate",
+      "label": "legitimate",
+      "text": "Market update: Nifty closed 0.4% higher today. Mutual fund investments are subject to market risks. Read all scheme documents carefully.",
+      "expect": {"status": "success", "max_level": "LOW_ATTENTION"}
+    },
+    {
+      "id": "guaranteed-monthly",
+      "group": "guaranteed_returns",
+      "label": "scam",
+      "text": "Join our premium plan and earn guaranteed returns of 20% every month. Zero risk, fully assured profit on your capital.",
+      "expect": {"status": "success", "min_level": "MODERATE", "signals_any": ["guaranteed_returns"]}
+    },
+    {
+      "id": "guaranteed-double",
+      "group": "guaranteed_returns",
+      "label": "scam",
+      "text": "Double your money in 30 days with our crypto trading bot. 100% safe and risk-free returns for every member.",
+      "expect": {"status": "success", "min_level": "MODERATE", "signals_any": ["guaranteed_returns"]}
+    },
+    {
+      "id": "urgency-preipo",
+      "group": "urgency",
+      "label": "scam",
+      "text": "Last chance! Only 2 hours left to book shares in the pre-IPO round. Act now before all slots close.",
+      "expect": {"status": "success", "min_level": "MODERATE", "signals_any": ["urgency"]}
+    },
+    {
+      "id": "urgency-transfer",
+      "group": "urgency",
+      "label": "scam",
+      "text": "This offer is for today only. Transfer the amount immediately to lock your allocation in the fund.",
+      "expect": {"status": "success", "min_level": "MODERATE", "signals_any": ["urgency"]}
+    },
+    {
+      "id": "sensitive-otp",
+      "group": "sensitive_information",
+      "label": "scam",
+      "text": "Dear customer, to activate your trading account please share the OTP sent to your mobile with our executive.",
+      "expect": {"status": "success", "min_level": "MODERATE", "signals_any": ["sensitive_request"]}
+    },
+    {
+      "id": "sensitive-password",
+      "group": "sensitive_information",
+      "label": "scam",
+      "text": "Your demat account KYC is pending. Reply with your net banking password and UPI PIN to avoid suspension.",
+      "expect": {"status": "success", "min_level": "ELEVATED", "signals_any": ["sensitive_request"]}
+    },
+    {
+      "id": "url-shortener",
+      "group": "suspicious_url",
+      "label": "scam",
+      "text": "Get daily stock tips from our experts. Download our app from http://bit.ly/stock-pro-app",
+      "expect": {"status": "success", "min_level": "MODERATE", "signals_any": ["short_link", "suspicious_url"]}
+    },
+    {
+      "id": "url-lookalike",
+      "group": "suspicious_url",
+      "label": "scam",
+      "text": "Claim your IPO allotment bonus now at https://zerodha-allotment.top/login",
+      "expect": {"status": "success", "min_level": "MODERATE", "signals_any": ["suspicious_url", "risky_domain_ending", "brand_imitation"]}
+    },
+    {
+      "id": "mixed-insider",
+      "group": "mixed",
+      "label": "scam",
+      "text": "INSIDER TIP: XYZ share will double tomorrow! SEBI approved. Guaranteed 5X return. Only 15 minutes left. Pay Rs 10,000 on UPI and share the OTP. Join t.me/xyz_tips",
+      "expect": {"status": "success", "min_level": "HIGH_ATTENTION", "signals_any": ["guaranteed_returns", "sensitive_request"]}
+    },
+    {
+      "id": "mixed-withdrawal",
+      "group": "mixed",
+      "label": "scam",
+      "text": "Congratulations! Your VIP trading account profit is Rs 2,40,000. Pay 10% withdrawal tax today to withdraw. Contact our advisor on WhatsApp.",
+      "expect": {"status": "success", "min_level": "ELEVATED", "signals_any": ["fake_platform"]}
+    },
+    {
+      "id": "unreadable-blank",
+      "group": "unreadable",
+      "label": "unreadable",
+      "image": "blank",
+      "expect": {"status": "inconclusive"}
+    },
+    {
+      "id": "unreadable-blur",
+      "group": "unreadable",
+      "label": "unreadable",
+      "image": "blur",
+      "text": "Guaranteed 5X return. Share the OTP now.",
+      "expect": {"status": "inconclusive"}
+    },
+    {
+      "id": "unreadable-noise",
+      "group": "unreadable",
+      "label": "unreadable",
+      "image": "noise",
+      "expect": {"status": "inconclusive"}
+    }
+  ]
+}

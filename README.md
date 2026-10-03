@@ -1,6 +1,6 @@
 # Screenshot scam screening
 
-The backend screens screenshots for phishing/scam indicators. It does not determine whether arbitrary claims are true or detect every form of image fraud. Scores are provisional 0?100 risk indicators, not calibrated probabilities. Low risk is not a safety guarantee; unreadable input returns `unknown`.
+The backend screens screenshots for phishing/scam indicators. It does not determine whether arbitrary claims are true or detect every form of image fraud. Scores are provisional 0?100 risk indicators, not calibrated probabilities. Low risk is not a safety guarantee; unreadable input returns `unknown` (`INCONCLUSIVE` in the mobile API).
 
 ## Start here
 
@@ -21,7 +21,8 @@ Set your laptop address in `mobile/src/constants/api-config.json` (or `EXPO_PUBL
 
 | Stage | Module | Responsibility |
 | --- | --- | --- |
-| Transport | `anweshabackend/server.py`, `anweshabackend/security.py` | Validate uploads and requests; generic errors; run analysis outside the event loop; feedback endpoint |
+| Transport | `anweshabackend/server.py`, `anweshabackend/security.py` | Validate uploads and requests; generic errors; run analysis outside the event loop with a timeout; feedback endpoint |
+| Adapter | `anweshabackend/engine_adapter.py`, `anweshabackend/contract.py` | OCR to engine, validate engine output, merge investor rules, validate the mobile response; see [docs/backend-integration.md](docs/backend-integration.md) |
 | 0 | `phishing_detector/ocr.py` | Image loading, preprocessing, single OCR pass, region confidence and spans |
 | 1 | `phishing_detector/entities.py` | URLs/domains, email, phone, UPI, accounts/IFSC, wallet candidates, brands, secret requests |
 | 2 | `phishing_detector/detectors.py` | URL heuristics, text rules, brand/domain differences, reviewed local blocklist |
@@ -50,13 +51,13 @@ These are fictional examples. Domain membership requires an exact host or a dot-
 
 ## API and feedback
 
-- `GET /api/v1/health`: confirms the API process is running; does not check model readiness.
+- `GET /api/v1/health`: API and contract version, plus engine status (OCR, rules, image and text classifiers, external reputation) and a `degraded` list of checks that cannot run.
 - `POST /api/v1/analyze-text`: `{ "text": "<message>" }`; runs entity extraction and the existing text/risk pipeline without OCR. Accepts up to 20,000 characters.
 - `POST /api/v1/analyze`: multipart `image`.
 - `POST /api/v1/save-image-json`: `{ "image": "<base64 or image data URI>" }`; same analysis under `result`.
 - `POST /api/v1/feedback`: `{ "analysis_id": "<UUID>", "kind": "wrong_verdict | report_scam", "note": "optional", "evidence_text": "optional" }`.
 
-Responses retain mobile fields (`risk`, `signals`, `explanation`, `verification`) and add `analysis_id`, `tokens`, `entities`, `detectors`, and `score_version`. Detector statuses distinguish unavailable/disabled checks from completed checks. Upload limits are 10 MiB and 25 million pixels; only JPEG, PNG and WebP are accepted, request bodies are capped at 15 MiB, and each IP gets 30 POST requests per minute (`SANGYAN_RATE_LIMIT`). Set `SANGYAN_ENV=production` behind an HTTPS proxy to reject plain HTTP and hide the API docs. Add authentication before public exposure.
+Responses follow contract 1.0 (`anweshabackend/contract.py`): `risk` (level, score out of `score_max` 100, reading confidence), `signals` with evidence, `explanation`, `verification`, `recommendation`, `detectors` and `metadata` (timings, engine version, checks that could not run). Failures return `{"detail", "error"}` with 500/502/503/504 codes instead of a made-up result. Timeouts and model requirements are set with `SANGYAN_ANALYSIS_TIMEOUT_S`, `SANGYAN_LOCK_WAIT_S`, `SANGYAN_REQUIRE_IMAGE_MODEL` and `SANGYAN_WARMUP`. Upload limits are 10 MiB and 25 million pixels; only JPEG, PNG and WebP are accepted, request bodies are capped at 15 MiB, and each IP gets 30 POST requests per minute (`SANGYAN_RATE_LIMIT`). Set `SANGYAN_ENV=production` behind an HTTPS proxy to reject plain HTTP and hide the API docs. Add authentication before public exposure.
 
 The mobile result screen includes feedback buttons and discloses that extracted text is submitted. Reports are stored in `phishing_detector/.cache/feedback.sqlite3` (override with `FEEDBACK_DB`). Submitted text can contain sensitive information; configure access and retention before collecting real user data. Analysis images/text are not automatically persisted. Report IDs reference client-provided analysis UUIDs and are not authenticated provenance. Review reports, correct labels, then manually promote confirmed indicators into configuration; reports never automatically poison the blocklist.
 
@@ -77,7 +78,7 @@ python -m pip install -r requirements-dev.txt -r requirements-ml.txt
 python -m pytest
 ```
 
-Tests cover confidence, extraction boundaries, secret negation, blocklist overrides, brand lookalikes, blank input, one-pass orchestration, API contracts, feedback persistence and model training/reload. OCR/model boundaries are mocked where appropriate; tests do not establish real-world detection accuracy.
+`tests/test_backend_integration.py` covers the mobile API end to end and every failure mode (model missing or failing, unreadable input, invalid engine output, exceptions, bad images, timeout and recovery). `anweshabackend/validation/run_validation.py` sends a small labelled set through a running server with real OCR. Other tests cover confidence, extraction boundaries, secret negation, blocklist overrides, brand lookalikes, blank input, one-pass orchestration, API contracts, feedback persistence and model training/reload. OCR/model boundaries are mocked where appropriate; tests do not establish real-world detection accuracy.
 
 RDAP and Safe Browsing/PhishTank/OpenPhish are explicitly `not_implemented`; no network reputation verdict is fabricated. Add provider adapters with timeouts, caching, provenance and failure statuses before enabling these checks. No suspect URL is visited by the current implementation. A production domain-age implementation needs public-suffix-aware registrable domains rather than a last-two-label approximation.
 

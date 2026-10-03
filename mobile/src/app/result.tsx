@@ -27,7 +27,7 @@ import {
 import { Colors, Radius, Space, ToneColors, Typography } from "@/constants/design";
 import { buildReasonSentence, buildSafetyPlan, getRelatedTopics } from "@/constants/guidance";
 import { getLearnTopic, type LearnTopicId } from "@/constants/learn-content";
-import { getRiskCopy } from "@/constants/risk";
+import { getConfidenceCopy, getRiskCopy, getRiskScore } from "@/constants/risk";
 import { useScan } from "@/state/scan-store";
 import { confirmAction } from "@/utils/confirm";
 import { formatDateTime } from "@/utils/format-date";
@@ -60,8 +60,9 @@ export default function ResultScreen() {
   useEffect(() => {
     if (!result || !fromScan) return;
     const copy = getRiskCopy(result.risk.level);
+    const { value, max } = getRiskScore(result);
     AccessibilityInfo.announceForAccessibility(
-      `Check complete. ${copy.label}, score ${result.risk.score} out of 10. ${copy.headline}.`
+      `Check complete. ${copy.label}, score ${value} out of ${max}. ${copy.headline}.`
     );
     // Announce once when the result first appears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,6 +73,15 @@ export default function ResultScreen() {
   }
 
   const risk = getRiskCopy(result.risk.level);
+  const score = getRiskScore(result);
+  const confidence = getConfidenceCopy(result);
+  const advice = result.recommendation?.message ?? risk.advice;
+  const metadata = result.metadata;
+  const unavailableChecks = Array.isArray(metadata?.unavailable_checks)
+    ? metadata.unavailable_checks.filter((item): item is string => typeof item === "string")
+    : [];
+  const processingSeconds =
+    typeof metadata?.processing_time_ms === "number" ? metadata.processing_time_ms / 1000 : undefined;
   const sourceText = result.extracted_text?.trim() ?? "";
   const isLong = sourceText.length > PREVIEW_CHARS;
   const visibleText =
@@ -180,32 +190,49 @@ export default function ResultScreen() {
             style={styles.heroTop}
             accessible
             accessibilityRole="header"
-            accessibilityLabel={`${risk.label}, score ${result.risk.score} out of 10. ${risk.headline}.`}
+            accessibilityLabel={`${risk.label}, score ${score.value} out of ${score.max}. ${risk.headline}.`}
           >
             <IconBadge icon={risk.icon} color={Colors.inverse} background={risk.color} size={52} />
             <View style={styles.heroTitles}>
-              <RiskBadge risk={risk} score={result.risk.score} inverse />
+              <RiskBadge risk={risk} score={score} inverse />
               <AppText variant="title">{risk.headline}</AppText>
             </View>
           </View>
           <View style={styles.meterBlock}>
-            <RiskMeter score={result.risk.score} color={risk.color} />
+            <RiskMeter score={score} color={risk.color} />
             <View style={styles.meterLegend} importantForAccessibility="no-hide-descendants">
               <AppText variant="caption" tone="muted">
                 Low
               </AppText>
               <AppText variant="caption" tone="muted">
-                Risk score {result.risk.score}/10
+                Risk score {score.value}/{score.max}
               </AppText>
               <AppText variant="caption" tone="muted">
                 High
               </AppText>
             </View>
           </View>
+          {confidence && (
+            <View
+              style={styles.confidenceRow}
+              accessible
+              accessibilityLabel={`Reading confidence ${confidence.percent} percent, ${confidence.label}. ${confidence.note}`}
+            >
+              <Ionicons name="eye-outline" size={18} color={Colors.muted} style={styles.confidenceIcon} />
+              <View style={styles.flex}>
+                <AppText variant="label" tone="ink">
+                  Reading confidence: {confidence.percent}% · {confidence.label}
+                </AppText>
+                <AppText variant="caption" tone="muted">
+                  {confidence.note}
+                </AppText>
+              </View>
+            </View>
+          )}
           <View style={[styles.adviceBox, { borderColor: risk.border }]} accessible accessibilityRole="alert">
             <Ionicons name="hand-left-outline" size={20} color={risk.color} />
             <AppText variant="bodyStrong" style={[styles.flex, { color: risk.color }]}>
-              {risk.advice}
+              {advice}
             </AppText>
           </View>
           {!!reasonSentence && (
@@ -387,6 +414,24 @@ export default function ResultScreen() {
 
       {!!result.analysis_id && <ReportCard analysisId={result.analysis_id} text={sourceText} />}
 
+      {(processingSeconds !== undefined || unavailableChecks.length > 0) && (
+        <Card style={styles.cardGap}>
+          <SectionHeader icon="information-circle-outline" title="About this check" />
+          {processingSeconds !== undefined && (
+            <AppText variant="caption" tone="muted">
+              Checked in {processingSeconds < 1 ? "under a second" : `${processingSeconds.toFixed(1)} seconds`}
+              {metadata?.engine_version ? ` · Engine ${metadata.engine_version}` : ""}
+            </AppText>
+          )}
+          {unavailableChecks.length > 0 && (
+            <AppText variant="caption" tone="muted">
+              Not available for this check: {unavailableChecks.join(", ")}. The result is based on the
+              checks that did run.
+            </AppText>
+          )}
+        </Card>
+      )}
+
       <AppText variant="caption" tone="muted" align="center">
         This check looks for common warning signs and can make mistakes. It is not investment
         advice and never tells you to buy, sell, or hold anything.
@@ -437,6 +482,13 @@ const styles = StyleSheet.create({
   meterLegend: {
     flexDirection: "row",
     justifyContent: "space-between",
+  },
+  confidenceRow: {
+    flexDirection: "row",
+    gap: Space.sm,
+  },
+  confidenceIcon: {
+    marginTop: 2,
   },
   adviceBox: {
     flexDirection: "row",

@@ -118,13 +118,16 @@ def analyze_text(text, tokens=None, settings=None, extra_detections=()):
     return result
 
 
-def analyze_image(src, box=None, langs=("en",), classify="full"):
-    from .ocr import crop_region, extract_text, load_image
+def classify_image(image, box=None, classify="full"):
+    """Optional ResNet50 visual signal as (Detection, legacy fields).
+
+    Model problems never raise: the detection is marked "unavailable" instead, so text
+    checks still run. Callers that require the model check the status.
+    """
+    from .ocr import crop_region
 
     if classify not in ("full", "crop", None):
         raise ValueError("classify must be full, crop, or None")
-    image = load_image(src)
-    ocr = extract_text(image, box, langs, return_confidence=True)
     detection = Detection("image_classifier", "disabled")
     legacy = {"label": None, "confidence": None, "probs": None, "warning": None}
     if classify:
@@ -156,6 +159,17 @@ def analyze_image(src, box=None, langs=("en",), classify="full"):
                 detail="Model could not be loaded or evaluated",
             )
             legacy["warning"] = detection.detail
+    return detection, legacy
+
+
+def analyze_image(src, box=None, langs=("en",), classify="full"):
+    from .ocr import extract_text, load_image
+
+    if classify not in ("full", "crop", None):
+        raise ValueError("classify must be full, crop, or None")
+    image = load_image(src)
+    ocr = extract_text(image, box, langs, return_confidence=True)
+    detection, legacy = classify_image(image, box, classify)
     result = analyze_text(ocr["text"], ocr["tokens"], extra_detections=[detection])
     result.update(legacy)
     result["urls"] = result["detected_urls"]

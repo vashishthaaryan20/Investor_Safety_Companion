@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import uuid
 from datetime import datetime, timezone
@@ -61,6 +62,8 @@ SEBI_REG_NUMBER = re.compile(r"\bIN[AHZP]\d{9}\b")
 
 # Below this much readable text, a "no warning signs" verdict would be misleading.
 MIN_READABLE_CHARS = 15
+# The engine weights the visual model by 0.55; from about this phishing % it adds 20+ points.
+VISUAL_NOTE_MIN = 36
 
 VERIFICATION_STEPS = [
     "Do not send money, share OTPs, or click unknown payment links based on this message.",
@@ -72,6 +75,8 @@ VERIFICATION_STEPS = [
 
 
 def _matches(*patterns: re.Pattern, text: str, limit: int = 3) -> list[str]:
+    # OCR wraps lines mid-phrase (also after a hyphen); the patterns use literal spaces.
+    text = " ".join(re.sub(r"(\w)-[ \t]*\n\s*(\w)", r"\1-\2", text).split())
     found: list[str] = []
     for pattern in patterns:
         for match in pattern.finditer(text):
@@ -91,6 +96,7 @@ def _add(
     title: str,
     description: str,
     evidence: list[str] | None = None,
+    origin: str = "investor_rules",
 ) -> None:
     signals.append(
         {
@@ -100,30 +106,63 @@ def _add(
             "title": title,
             "description": description,
             "evidence": evidence or [],
+            "origin": origin,
         }
     )
 
 
-def _score(signals: list[dict]) -> tuple[str, int]:
+def _rules_score(signals: list[dict]) -> int:
+    """0-100 from the investor-safety signals; 10 points per severity step."""
     weights = {"high": 3, "medium": 2, "low": 1}
     # A serious signal backed by several distinct phrases is stronger evidence than a single word.
-    total = min(
-        10,
-        sum(
-            weights.get(s["severity"], 1)
-            + (1 if s["severity"] == "high" and len(s.get("evidence") or []) >= 2 else 0)
-            for s in signals
-        ),
+    total = sum(
+        weights.get(s["severity"], 1)
+        + (1 if s["severity"] == "high" and len(s.get("evidence") or []) >= 2 else 0)
+        for s in signals
     )
-    if not signals:
-        return "LOW_ATTENTION", 1
-    if total >= 7:
-        return "HIGH_ATTENTION", total
-    if total >= 4:
-        return "ELEVATED", total
-    if total >= 2:
-        return "MODERATE", total
-    return "LOW_ATTENTION", total
+    return min(100, total * 10)
+
+
+def level_for(score: float) -> str:
+    # The engine's own bands (dangerous >= 80, suspicious >= 40) land in HIGH and ELEVATED.
+    if score >= 70:
+        return "HIGH_ATTENTION"
+    if score >= 40:
+        return "ELEVATED"
+    if score >= 20:
+        return "MODERATE"
+    return "LOW_ATTENTION"
+
+
+RECOMMENDATIONS = {
+    "HIGH_ATTENTION": (
+        "STOP_AND_VERIFY",
+        "Do not pay, tap links, or share OTPs. Verify the sender on SEBI's official registers "
+        "before you do anything.",
+    ),
+    "ELEVATED": (
+        "STOP_AND_VERIFY",
+        "Stop and verify the sender and offer through official sources before you act.",
+    ),
+    "MODERATE": (
+        "VERIFY_BEFORE_PROCEEDING",
+        "Check who sent this and verify the offer independently before you act.",
+    ),
+    "LOW_ATTENTION": (
+        "VERIFY_BEFORE_PROCEEDING",
+        "No common scam signs were found, but that is not proof it is safe. "
+        "Verify independently before you invest or pay.",
+    ),
+    "INCONCLUSIVE": (
+        "RETRY_WITH_CLEARER_INPUT",
+        "We couldn't read enough to check this. Try a clearer screenshot or paste the message as text.",
+    ),
+}
+
+
+def recommendation_for(level: str) -> dict:
+    action, message = RECOMMENDATIONS[level]
+    return {"action": action, "message": message}
 
 
 # phishing_detector finding title -> (signal id, category, severity, title, description).
@@ -202,16 +241,41 @@ DETECTOR_FINDINGS: dict[str, tuple[str, str, str, str, str]] = {
 # Findings are pre-weighted by OCR confidence; below this they are mostly misreads.
 MIN_DETECTOR_SCORE = 0.1
 
+DETECTOR_CATEGORY = {
+    "url_domain": "source",
+    "brand_mismatch": "source",
+    "blocklist": "source",
+    "text_rules": "behavior",
+    "text_ml": "content",
+}
+VISUAL_FINDING = "Visual classifier signal"
+
+
+def _finding_spec(finding: dict[str, Any]) -> tuple[str, str, str, str, str]:
+    """Known titles use reviewed wording; anything new from the engine is still shown, never dropped."""
+    title = str(finding.get("title") or "")
+    if title in DETECTOR_FINDINGS:
+        return DETECTOR_FINDINGS[title]
+    score = finding.get("score") or 0
+    slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_") or "finding"
+    return (
+        f"engine_{slug}",
+        DETECTOR_CATEGORY.get(str(finding.get("category") or ""), "content"),
+        "high" if score >= 0.65 else "medium" if score >= 0.35 else "low",
+        title,
+        str(finding.get("description") or "The detection engine flagged this."),
+    )
+
 
 def detector_signals(detectors: list[dict[str, Any]] | None) -> list[dict]:
     """Turn phishing_detector findings into signals, one per kind, with all evidence merged."""
     merged: dict[str, dict] = {}
     for detection in detectors or []:
         for finding in detection.get("findings") or []:
-            spec = DETECTOR_FINDINGS.get(finding.get("title", ""))
-            if spec is None or (finding.get("score") or 0) < MIN_DETECTOR_SCORE:
+            # The visual classifier is reported through phishing_visual in analyze_content.
+            if finding.get("title") == VISUAL_FINDING or (finding.get("score") or 0) < MIN_DETECTOR_SCORE:
                 continue
-            signal_id, category, severity, title, description = spec
+            signal_id, category, severity, title, description = _finding_spec(finding)
             signal = merged.setdefault(
                 signal_id,
                 {
@@ -221,6 +285,7 @@ def detector_signals(detectors: list[dict[str, Any]] | None) -> list[dict]:
                     "title": title,
                     "description": description,
                     "evidence": [],
+                    "origin": "engine",
                 },
             )
             evidence = " ".join(str(finding.get("evidence") or "").split())
@@ -235,7 +300,13 @@ def analyze_content(
     phishing_label: str | None = None,
     phishing_confidence: float | None = None,
     extra_signals: list[dict] | None = None,
+    engine_risk: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Investor-safety rules on top of the detection engine's verdict.
+
+    The final score is the higher of the engine's fused score and the rules score, so
+    neither can hide the other's evidence. Every level above low has at least one signal.
+    """
     text = text or ""
     entities = entities or []
     signals: list[dict] = []
@@ -400,16 +471,34 @@ def analyze_content(
             urls[:3],
         )
 
-    if phishing_label == "phishing" and (phishing_confidence or 0) >= 55:
-        _add(
-            signals,
-            "phishing_visual",
-            "visual",
-            "high",
-            "Looks like a known fake page",
-            "Our image check found this screenshot looks similar to known phishing pages.",
-            [f"{phishing_confidence:.0f}% match with phishing layouts"],
+    if phishing_label in {"phishing", "legitimate"} and phishing_confidence is not None:
+        phishing_percent = (
+            phishing_confidence if phishing_label == "phishing" else 100 - phishing_confidence
         )
+        if phishing_label == "phishing" and phishing_confidence >= 55:
+            _add(
+                signals,
+                "phishing_visual",
+                "visual",
+                "high",
+                "Looks like a known fake page",
+                "Our image check found this screenshot looks similar to known phishing pages.",
+                [f"{phishing_confidence:.0f}% match with phishing layouts"],
+                origin="engine",
+            )
+        elif phishing_percent >= VISUAL_NOTE_MIN:
+            # Enough to move the engine score into "be careful", so it must be visible.
+            _add(
+                signals,
+                "phishing_visual_weak",
+                "visual",
+                "low",
+                "Layout looks a little like fake pages",
+                "Our image check found some resemblance to known phishing pages. "
+                "On its own this is weak evidence.",
+                [f"{phishing_percent:.0f}% resemblance to phishing layouts"],
+                origin="engine",
+            )
 
     own_ids = {s["id"] for s in signals}
     for extra in extra_signals or []:
@@ -423,11 +512,18 @@ def analyze_content(
             extra["title"],
             extra["description"],
             extra.get("evidence"),
+            extra.get("origin", "engine"),
         )
 
-    level, score = _score(signals)
-    readable = len(text.strip()) >= MIN_READABLE_CHARS
+    engine_level = (engine_risk or {}).get("level")
+    engine_score = float((engine_risk or {}).get("score") or 0)
+    # Floor, so the shown score never crosses a band the evidence didn't reach.
+    score = math.floor(max(_rules_score(signals), engine_score))
+    level = level_for(score)
+    readable = len(text.strip()) >= MIN_READABLE_CHARS and engine_level != "unknown"
     status = "success" if signals or readable else "inconclusive"
+    if status == "inconclusive":
+        level = "INCONCLUSIVE"
 
     if status == "inconclusive":
         explanation = (
@@ -461,4 +557,5 @@ def analyze_content(
         "signals": signals,
         "explanation": explanation,
         "verification": VERIFICATION_STEPS,
+        "recommendation": recommendation_for(level),
     }

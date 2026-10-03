@@ -2,7 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { Colors, Space } from "@/constants/design";
-import { getResultCopy, isInconclusive } from "@/constants/risk";
+import { getResultCopy, getRiskScore, isInconclusive } from "@/constants/risk";
 import type { ScanRecord } from "@/services/history-storage";
 import { formatDateTime, formatTime } from "@/utils/format-date";
 
@@ -19,6 +19,7 @@ interface HistoryRowProps {
 export function HistoryRow({ record, onPress, onDelete, timeOnly }: HistoryRowProps) {
   const unclear = isInconclusive(record.result);
   const risk = getResultCopy(record.result);
+  const score = getRiskScore(record.result);
   const signalCount = record.result.signals.length;
   const when = timeOnly ? formatTime(record.createdAt) : formatDateTime(record.createdAt);
   const signalsText = unclear
@@ -30,7 +31,7 @@ export function HistoryRow({ record, onPress, onDelete, timeOnly }: HistoryRowPr
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`${risk.label}${unclear ? "" : `, score ${record.result.risk.score} out of 10`}. ${signalsText}. Checked ${when}. ${record.preview}`}
+        accessibilityLabel={`${risk.label}${unclear ? "" : `, score ${score.value} out of ${score.max}`}. ${signalsText}. Checked ${when}. ${record.preview}`}
         accessibilityHint="Opens the full result"
         style={({ pressed }) => [styles.main, pressed && { opacity: 0.7 }]}
       >
@@ -46,7 +47,7 @@ export function HistoryRow({ record, onPress, onDelete, timeOnly }: HistoryRowPr
             {record.preview}
           </AppText>
           <View style={styles.metaRow}>
-            <RiskBadge risk={risk} score={unclear ? undefined : record.result.risk.score} size="sm" />
+            <RiskBadge risk={risk} score={unclear ? undefined : score} size="sm" />
             <AppText variant="caption" tone="muted">
               {when} · {signalsText}
             </AppText>

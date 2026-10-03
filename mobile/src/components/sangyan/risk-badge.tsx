@@ -6,7 +6,7 @@ import type { RiskCopy } from "@/constants/risk";
 
 interface RiskBadgeProps {
   risk: RiskCopy;
-  score?: number;
+  score?: { value: number; max: number };
   size?: "sm" | "md";
   /** On a coloured hero, show a white pill instead of a tinted one. */
   inverse?: boolean;
@@ -16,7 +16,7 @@ interface RiskBadgeProps {
 /** Icon + text label + colour, so risk is never communicated by colour alone. */
 export function RiskBadge({ risk, score, size = "md", inverse, style }: RiskBadgeProps) {
   const small = size === "sm";
-  const label = score === undefined ? risk.label : `${risk.label} · ${score}/10`;
+  const label = score === undefined ? risk.label : `${risk.label} · ${score.value}/${score.max}`;
   return (
     <View
       style={[
@@ -28,7 +28,9 @@ export function RiskBadge({ risk, score, size = "md", inverse, style }: RiskBadg
       accessible
       accessibilityRole="text"
       accessibilityLabel={
-        score === undefined ? `Risk: ${risk.label}` : `Risk: ${risk.label}, score ${score} out of 10`
+        score === undefined
+          ? `Risk: ${risk.label}`
+          : `Risk: ${risk.label}, score ${score.value} out of ${score.max}`
       }
     >
       <Ionicons name={risk.icon} size={small ? 14 : 16} color={risk.color} />

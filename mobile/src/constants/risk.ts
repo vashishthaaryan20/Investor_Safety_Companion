@@ -73,7 +73,38 @@ const UNCLEAR_COPY = riskCopy(
 );
 
 export function getRiskCopy(level: string): RiskCopy {
+  if (level === "INCONCLUSIVE") return UNCLEAR_COPY;
   return RISK_COPY[level] ?? RISK_COPY.MODERATE;
+}
+
+/** The backend's score and the scale it used (results saved before contract 1.0 are out of 10). */
+export function getRiskScore(result: AnalysisResult): { value: number; max: number } {
+  const max = result.risk.score_max && result.risk.score_max > 0 ? result.risk.score_max : 10;
+  return { value: Math.round(Math.min(max, Math.max(0, result.risk.score))), max };
+}
+
+export interface ConfidenceCopy {
+  percent: number;
+  label: string;
+  note: string;
+}
+
+/** Reading confidence in plain words; undefined for results that don't report it. */
+export function getConfidenceCopy(result: AnalysisResult): ConfidenceCopy | undefined {
+  const { confidence, confidence_basis: basis } = result.risk;
+  if (confidence === undefined) return undefined;
+  const percent = Math.round(confidence * 100);
+  if (basis === "typed_text") {
+    return { percent, label: "Exact text", note: "You typed or pasted this, so every word was checked as written." };
+  }
+  const label = confidence >= 0.85 ? "Clear" : confidence >= 0.6 ? "Mostly clear" : "Hard to read";
+  return {
+    percent,
+    label,
+    note:
+      "How clearly we could read the words in your screenshot. It is not the chance that this is a scam." +
+      (confidence < 0.6 ? " Some words may have been misread, so check the original message." : ""),
+  };
 }
 
 export function getResultCopy(result: AnalysisResult): RiskCopy {
@@ -111,7 +142,7 @@ export function getCategoryIcon(category: string): IconName {
 }
 
 export function isInconclusive(result: AnalysisResult): boolean {
-  if (result.status === "inconclusive") {
+  if (result.status === "inconclusive" || result.risk.level === "INCONCLUSIVE") {
     return true;
   }
   return !result.extracted_text?.trim() && result.signals.length === 0;
