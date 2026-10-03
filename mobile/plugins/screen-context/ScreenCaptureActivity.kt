@@ -6,6 +6,7 @@ import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowInsets
 
 /**
  * Invisible activity started from the "Analyze screen" tile. It asks Android for one-time
@@ -61,9 +62,12 @@ class ScreenCaptureActivity : Activity() {
 
     handedOff = true
     ScreenCaptureService.observe(::onOutcome)
+    val (barTop, barBottom) = systemBarSizes()
     val service = Intent(this, ScreenCaptureService::class.java)
       .putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, resultCode)
       .putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data)
+      .putExtra(ScreenCaptureService.EXTRA_CROP_TOP, barTop)
+      .putExtra(ScreenCaptureService.EXTRA_CROP_BOTTOM, barBottom)
     try {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         startForegroundService(service)
@@ -73,6 +77,22 @@ class ScreenCaptureActivity : Activity() {
     } catch (e: Exception) {
       ScreenCaptureService.observe(null)
       onOutcome(mapOf("error" to "failed"))
+    }
+  }
+
+  /**
+   * Status and navigation bar heights in pixels. They are cropped from the capture: they show
+   * notification icons and the clock, not the message being checked.
+   */
+  private fun systemBarSizes(): Pair<Int, Int> {
+    val insets = window?.decorView?.rootWindowInsets ?: return 0 to 0
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      val status = insets.getInsetsIgnoringVisibility(WindowInsets.Type.statusBars())
+      val navigation = insets.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
+      status.top to navigation.bottom
+    } else {
+      @Suppress("DEPRECATION")
+      insets.stableInsetTop to insets.stableInsetBottom
     }
   }
 

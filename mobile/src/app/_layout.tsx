@@ -56,15 +56,14 @@ export default function RootLayout() {
           <Stack.Screen name="scan-error" options={{ headerShown: false }} />
           <Stack.Screen name="learn/[topic]" options={{ title: 'Learn & Protect' }} />
           <Stack.Screen name="emergency" options={{ title: 'Emergency help' }} />
+          {/* Not singular: removing an older instance from under a result desyncs the native stack. */}
           <Stack.Screen
             name="quick-capture"
             options={{ title: 'Quick Capture', animation: 'slide_from_bottom' }}
-            dangerouslySingular={() => 'quick-capture'}
           />
           <Stack.Screen
             name="screen-context"
             options={{ title: 'Check with SANGYAN', animation: 'slide_from_bottom' }}
-            dangerouslySingular={() => 'screen-context'}
           />
           <Stack.Screen name="scam-check" options={{ headerShown: false }} />
         </Stack>

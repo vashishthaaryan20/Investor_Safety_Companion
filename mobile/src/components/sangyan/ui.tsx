@@ -46,6 +46,11 @@ const TEXT_TONES = {
 
 export type TextTone = keyof typeof TEXT_TONES;
 
+// Android can measure short bold labels a pixel or two narrower than it draws them (seen with
+// OEM system fonts at large font sizes), pushing the last word onto a clipped second line.
+// A trailing space is counted when measuring but may hang past the edge when wrapping.
+const LABEL_SLACK = " ";
+
 interface AppTextProps extends TextProps {
   variant?: TypographyVariant;
   tone?: TextTone;
@@ -171,6 +176,7 @@ export function AppButton({
       )}
       <Text style={[styles.buttonLabel, { color: fg }]} numberOfLines={2}>
         {loading && loadingLabel ? loadingLabel : label}
+        {LABEL_SLACK}
       </Text>
     </Pressable>
   );
@@ -251,7 +257,10 @@ export function TextLink({
       style={({ pressed }) => [styles.textLink, pressed && { opacity: 0.6 }, style]}
     >
       {icon && <Ionicons name={icon} size={18} color={color} />}
-      <Text style={[Typography.label, { color }]}>{label}</Text>
+      <Text style={[Typography.label, { color }]}>
+        {label}
+        {LABEL_SLACK}
+      </Text>
       {trailingIcon && <Ionicons name={trailingIcon} size={16} color={color} />}
     </Pressable>
   );

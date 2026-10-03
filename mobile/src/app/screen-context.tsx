@@ -186,19 +186,12 @@ export default function ScreenContextScreen() {
     }, [])
   );
 
-  const leave = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/");
-    }
-  }, [router]);
-
+  // Always Home: older instances of this screen can sit lower in the stack with deleted captures.
   const cancel = useCallback(() => {
     // resetDraft deletes the temporary capture file.
     resetDraft("image");
-    leave();
-  }, [leave, resetDraft]);
+    router.dismissTo("/");
+  }, [resetDraft, router]);
 
   // Hardware Back counts as Cancel, so the capture is deleted.
   useFocusEffect(

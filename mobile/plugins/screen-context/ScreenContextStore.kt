@@ -70,6 +70,14 @@ internal fun Bitmap.isMostlyBlack(): Boolean {
   return lit * 1000 < columns * rows * 15
 }
 
+/** Drops rows from the top and bottom (system bars); ignores values that would leave too little. */
+internal fun Bitmap.cropRows(top: Int, bottom: Int): Bitmap {
+  val cropTop = top.coerceAtLeast(0)
+  val cropBottom = bottom.coerceAtLeast(0)
+  if (cropTop + cropBottom == 0 || cropTop + cropBottom >= height / 2) return this
+  return Bitmap.createBitmap(this, 0, cropTop, width, height - cropTop - cropBottom)
+}
+
 internal fun Bitmap.limitSize(maxDimension: Int): Bitmap {
   val longest = maxOf(width, height)
   if (longest <= maxDimension) return this

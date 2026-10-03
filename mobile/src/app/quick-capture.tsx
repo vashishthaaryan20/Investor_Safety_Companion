@@ -110,11 +110,7 @@ export default function QuickCaptureScreen() {
 
   const close = () => {
     resetDraft("image");
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/");
-    }
+    router.dismissTo("/");
   };
 
   const analyze = () => {

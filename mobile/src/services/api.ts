@@ -11,7 +11,7 @@ import {
 } from "./imageJson";
 
 // Keep this address aligned with the laptop running FastAPI.
-export const API_BASE_URL = "http://10.30.54.3:8000";
+export const API_BASE_URL = "http://10.202.254.3:8000";
 
 // The first screenshot after a server restart also loads the OCR model.
 const REQUEST_TIMEOUT_MS = 90_000;

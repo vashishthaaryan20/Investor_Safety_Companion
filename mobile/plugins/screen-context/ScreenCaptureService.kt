@@ -37,6 +37,8 @@ class ScreenCaptureService : Service() {
   private var started = false
   private var finished = false
   private var sawBlankFrame = false
+  private var cropTop = 0
+  private var cropBottom = 0
 
   override fun onBind(intent: Intent?): IBinder? = null
 
@@ -56,6 +58,8 @@ class ScreenCaptureService : Service() {
     }
     if (started) return START_NOT_STICKY
     started = true
+    cropTop = intent?.getIntExtra(EXTRA_CROP_TOP, 0) ?: 0
+    cropBottom = intent?.getIntExtra(EXTRA_CROP_BOTTOM, 0) ?: 0
 
     val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, Activity.RESULT_CANCELED)
       ?: Activity.RESULT_CANCELED
@@ -160,10 +164,12 @@ class ScreenCaptureService : Service() {
     }
 
     val outcome = try {
-      val scaled = bitmap.limitSize(MAX_IMAGE_DIMENSION)
+      val cropped = bitmap.cropRows(cropTop, cropBottom)
+      val scaled = cropped.limitSize(MAX_IMAGE_DIMENSION)
       val (id, file) = ScreenContextStore.newFile(this, "jpg")
       scaled.saveAsJpeg(file)
-      if (scaled !== bitmap) scaled.recycle()
+      if (scaled !== cropped) scaled.recycle()
+      if (cropped !== bitmap) cropped.recycle()
       mapOf("kind" to "image", "capture" to id)
     } catch (e: Exception) {
       Log.w(TAG, "Could not save the captured screen: " + e.javaClass.simpleName)
@@ -233,6 +239,8 @@ class ScreenCaptureService : Service() {
   companion object {
     const val EXTRA_RESULT_CODE = "resultCode"
     const val EXTRA_RESULT_DATA = "resultData"
+    const val EXTRA_CROP_TOP = "cropTop"
+    const val EXTRA_CROP_BOTTOM = "cropBottom"
     private const val TAG = "SangyanScreenCapture"
     private const val CHANNEL_ID = "screen_context"
     private const val NOTIFICATION_ID = 4108
