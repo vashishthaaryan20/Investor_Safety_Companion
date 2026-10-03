@@ -54,6 +54,32 @@ const ERROR_COPY: Record<ApiErrorKind, ErrorCopy> = {
       "Or paste the message as text instead.",
     ],
   },
+  too_large: {
+    icon: "resize-outline",
+    title: "This screenshot is too large",
+    message: "Images must be under 10 MB. Nothing was checked.",
+    tips: [
+      "Crop the screenshot to just the message, then try again.",
+      "Take a normal screenshot instead of a high-resolution photo.",
+      "Or paste the message as text instead.",
+    ],
+  },
+  rate_limited: {
+    icon: "timer-outline",
+    title: "Too many checks in a short time",
+    message: "To keep the service available for everyone, please wait a minute.",
+    tips: ["Wait about a minute, then tap Try again."],
+  },
+  insecure: {
+    icon: "lock-open-outline",
+    title: "Connection not secure",
+    message:
+      "SANGYAN Shield only sends your content over a secure connection. Nothing was sent.",
+    tips: [
+      "This app version is set up to use an unsecured server address.",
+      "Update the app, or ask whoever set it up to use an https:// server address.",
+    ],
+  },
   server: {
     icon: "construct-outline",
     title: "Something went wrong on our side",
@@ -74,12 +100,22 @@ const ERROR_COPY: Record<ApiErrorKind, ErrorCopy> = {
   },
 };
 
+const INVALID_TEXT_COPY: ErrorCopy = {
+  icon: "chatbox-ellipses-outline",
+  title: "We couldn't check that message",
+  message: "The message was empty or too long to check.",
+  tips: [
+    "Paste only the suspicious message, not a whole chat.",
+    "Messages up to about 20,000 characters can be checked.",
+  ],
+};
+
 export default function ScanErrorScreen() {
   const router = useRouter();
   const { error, draft } = useScan();
   const [showDetails, setShowDetails] = useState(false);
   const kind = error?.kind ?? "network";
-  const copy = ERROR_COPY[kind];
+  const copy = kind === "invalid_input" && draft.mode === "text" ? INVALID_TEXT_COPY : ERROR_COPY[kind];
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {

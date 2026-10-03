@@ -1,5 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 
+import { devError, devWarn } from "@/utils/dev-log";
+
 export type ImageSource = "library" | "camera";
 
 export interface PickedImage {
@@ -51,7 +53,7 @@ export async function pickImage(source: ImageSource): Promise<PickResult> {
     }
     return { status: "picked", image: toPickedImage(picked.assets[0]) };
   } catch (error) {
-    console.error("Image selection failed:", error);
+    devError("Image selection failed:", error);
     return { status: "error" };
   }
 }
@@ -64,7 +66,7 @@ export async function recoverPendingImage(): Promise<PickedImage | null> {
       return toPickedImage(pending.assets[0]);
     }
   } catch (error) {
-    console.warn("Could not recover pending image:", error);
+    devWarn("Could not recover pending image:", error);
   }
   return null;
 }

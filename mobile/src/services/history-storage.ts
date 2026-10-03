@@ -1,6 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { devWarn } from "@/utils/dev-log";
+
 import type { AnalysisResult } from "./api";
+import { redactResult, redactText } from "./redact";
 
 const HISTORY_KEY = "sangyan.history.v1";
 const SETTINGS_KEY = "sangyan.settings.v1";
@@ -9,7 +12,7 @@ export const MAX_HISTORY = 50;
 
 export type ScanMode = "image" | "text";
 
-// Screenshots are never stored: only the extracted text and the analysis result.
+// Screenshots are never stored: only the result and the text, with personal numbers masked.
 export interface ScanRecord {
   id: string;
   createdAt: number;
@@ -47,13 +50,18 @@ export async function loadHistory(): Promise<ScanRecord[]> {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
+    // Entries saved before masking existed are masked on load and re-saved that way.
     return parsed
       .filter(isScanRecord)
-      .map((record) => ({ ...record, preview: record.preview ?? "" }))
+      .map((record) => ({
+        ...record,
+        preview: redactText(record.preview ?? ""),
+        result: redactResult(record.result),
+      }))
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, MAX_HISTORY);
   } catch (error) {
-    console.warn("Could not read saved history:", error);
+    devWarn("Could not read saved history:", error);
     return [];
   }
 }
@@ -66,7 +74,7 @@ export async function saveHistory(records: ScanRecord[]): Promise<void> {
     }
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(records.slice(0, MAX_HISTORY)));
   } catch (error) {
-    console.warn("Could not save history:", error);
+    devWarn("Could not save history:", error);
   }
 }
 
@@ -88,6 +96,6 @@ export async function saveSettings(settings: HistorySettings): Promise<void> {
   try {
     await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch (error) {
-    console.warn("Could not save settings:", error);
+    devWarn("Could not save settings:", error);
   }
 }

@@ -11,6 +11,7 @@ import {
   Card,
   IconButton,
   InfoNote,
+  SendDisclosure,
   OptionCard,
 } from "@/components/sangyan/ui";
 import { Colors, Radius, Space } from "@/constants/design";
@@ -37,7 +38,7 @@ const STEPS = ["Capture", "Confirm", "Result"] as const;
 
 export default function QuickCaptureScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ source?: string; action?: string; uri?: string }>();
+  const params = useLocalSearchParams<{ source?: string; action?: string }>();
   const source: LaunchSource =
     params.source === "tile" || params.source === "shortcut" ? params.source : "app";
   const action: LaunchAction | undefined =
@@ -89,11 +90,9 @@ export default function QuickCaptureScreen() {
     started.current = true;
     resetDraft("image");
 
+    // Images only come from the picker or camera here. File paths in deep links are ignored:
+    // any app can open a link, and it must not be able to queue a file for upload.
     const start = async () => {
-      if (params.uri) {
-        applyPicked({ uri: params.uri, name: "screenshot.jpg", type: "image/jpeg" });
-        return;
-      }
       const recovered = await recoverPendingImage();
       if (recovered) {
         applyPicked(recovered);
@@ -192,10 +191,10 @@ export default function QuickCaptureScreen() {
             />
           </View>
           {notice && <PickResultNotice result={notice} onRetry={capture} />}
-          <InfoNote>
-            Only this image is sent for checking. The image itself is never stored, on the server
-            or in your history. Hide bank details and OTPs if you can.
+          <InfoNote icon="eye-outline">
+            Make sure this is the screenshot you meant. Hide bank details and OTPs if you can.
           </InfoNote>
+          <SendDisclosure kind="image" action="Analyze now" />
         </View>
       ) : (
         <View style={styles.section}>

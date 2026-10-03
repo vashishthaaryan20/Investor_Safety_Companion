@@ -220,17 +220,13 @@ const withQuickCaptureStrings = (config) =>
     return cfg;
   });
 
-const withQuickCaptureManifest = (config, { allowCleartextTraffic }) =>
+const withQuickCaptureManifest = (config) =>
   withAndroidManifest(config, (cfg) => {
     const manifest = cfg.modResults;
     const app = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest);
     const mainActivity = AndroidConfig.Manifest.getMainActivityOrThrow(manifest);
 
-    // The API runs on a laptop over plain HTTP during the hackathon; release builds block that by default.
-    if (allowCleartextTraffic) {
-      app.$["android:usesCleartextTraffic"] = "true";
-    }
-
+    // Cleartext traffic to the local API is configured by with-network-security.
     app.service = (app.service || []).filter(
       (service) => !service.$["android:name"].endsWith(TILE_CLASS)
     );
@@ -256,10 +252,9 @@ const withQuickCaptureManifest = (config, { allowCleartextTraffic }) =>
     return cfg;
   });
 
-module.exports = function withQuickCapture(config, props = {}) {
-  const options = { allowCleartextTraffic: true, ...props };
+module.exports = function withQuickCapture(config) {
   config = withQuickCaptureFiles(config);
   config = withQuickCaptureStrings(config);
-  config = withQuickCaptureManifest(config, options);
+  config = withQuickCaptureManifest(config);
   return config;
 };

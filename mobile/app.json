@@ -18,7 +18,17 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ashhhh69.mobile"
+      "package": "com.ashhhh69.mobile",
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -44,6 +54,7 @@
       ],
       "./plugins/with-quick-capture",
       "./plugins/with-screen-context",
+      "./plugins/with-network-security",
       "./plugins/with-android-build-memory",
       "./plugins/with-font-scale-config"
     ],

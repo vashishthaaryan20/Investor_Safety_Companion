@@ -183,15 +183,7 @@ class ScreenCaptureService : Service() {
   private fun complete(outcome: Map<String, String>) {
     if (finished) return
     finished = true
-    handler.removeCallbacksAndMessages(null)
-    runCatching { imageReader?.setOnImageAvailableListener(null, null) }
-    runCatching { virtualDisplay?.release() }
-    runCatching { imageReader?.close() }
-    runCatching { projection?.stop() }
-    virtualDisplay = null
-    imageReader = null
-    projection = null
-
+    releaseCapture()
     deliver(outcome)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
       stopForeground(STOP_FOREGROUND_REMOVE)
@@ -200,6 +192,17 @@ class ScreenCaptureService : Service() {
       stopForeground(true)
     }
     stopSelf()
+  }
+
+  private fun releaseCapture() {
+    handler.removeCallbacksAndMessages(null)
+    runCatching { imageReader?.setOnImageAvailableListener(null, null) }
+    runCatching { virtualDisplay?.release() }
+    runCatching { imageReader?.close() }
+    runCatching { projection?.stop() }
+    virtualDisplay = null
+    imageReader = null
+    projection = null
   }
 
   private fun startInForeground() {
@@ -232,6 +235,13 @@ class ScreenCaptureService : Service() {
   }
 
   override fun onDestroy() {
+    // Android can destroy the service before the capture completes (low memory, force stop).
+    // The projection must never outlive it, so release it here too.
+    if (!finished) {
+      finished = true
+      releaseCapture()
+      deliver(mapOf("error" to "stopped"))
+    }
     worker.quitSafely()
     super.onDestroy()
   }

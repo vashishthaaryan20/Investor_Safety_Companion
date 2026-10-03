@@ -15,13 +15,13 @@ cd anweshabackend
 python -m uvicorn server:app --host 0.0.0.0 --port 8000
 ```
 
-Set the mobile `API_BASE_URL` in `mobile/src/services/api.ts` to your laptop address. Both existing upload routes remain supported. EasyOCR downloads its models on first use. Existing ResNet weights are loaded through `config.py` / `storage.py`; unavailable weights are reported without suppressing text checks.
+Set your laptop address in `mobile/src/constants/api-config.json` (or `EXPO_PUBLIC_API_BASE_URL`), then run `npx expo prebuild` so the Android network rules allow it. Plain `http://` works only for local-network addresses; any other server must use `https://`. See [docs/privacy-security.md](docs/privacy-security.md) for what is sent, stored and deleted. Both existing upload routes remain supported. EasyOCR downloads its models on first use. Existing ResNet weights are loaded through `config.py` / `storage.py`; unavailable weights are reported without suppressing text checks.
 
 ## Code map
 
 | Stage | Module | Responsibility |
 | --- | --- | --- |
-| Transport | `main.py` | Validate uploads; run analysis outside the event loop; feedback endpoint |
+| Transport | `anweshabackend/server.py`, `anweshabackend/security.py` | Validate uploads and requests; generic errors; run analysis outside the event loop; feedback endpoint |
 | 0 | `phishing_detector/ocr.py` | Image loading, preprocessing, single OCR pass, region confidence and spans |
 | 1 | `phishing_detector/entities.py` | URLs/domains, email, phone, UPI, accounts/IFSC, wallet candidates, brands, secret requests |
 | 2 | `phishing_detector/detectors.py` | URL heuristics, text rules, brand/domain differences, reviewed local blocklist |
@@ -56,7 +56,7 @@ These are fictional examples. Domain membership requires an exact host or a dot-
 - `POST /api/v1/save-image-json`: `{ "image": "<base64 or image data URI>" }`; same analysis under `result`.
 - `POST /api/v1/feedback`: `{ "analysis_id": "<UUID>", "kind": "wrong_verdict | report_scam", "note": "optional", "evidence_text": "optional" }`.
 
-Responses retain mobile fields (`risk`, `signals`, `explanation`, `verification`) and add `analysis_id`, `tokens`, `entities`, `detectors`, and `score_version`. Detector statuses distinguish unavailable/disabled checks from completed checks. Upload limits are 10 MiB and 20 million pixels. API deployments should also cap incoming request bodies at the proxy and add authentication/rate limits before public exposure.
+Responses retain mobile fields (`risk`, `signals`, `explanation`, `verification`) and add `analysis_id`, `tokens`, `entities`, `detectors`, and `score_version`. Detector statuses distinguish unavailable/disabled checks from completed checks. Upload limits are 10 MiB and 25 million pixels; only JPEG, PNG and WebP are accepted, request bodies are capped at 15 MiB, and each IP gets 30 POST requests per minute (`SANGYAN_RATE_LIMIT`). Set `SANGYAN_ENV=production` behind an HTTPS proxy to reject plain HTTP and hide the API docs. Add authentication before public exposure.
 
 The mobile result screen includes feedback buttons and discloses that extracted text is submitted. Reports are stored in `phishing_detector/.cache/feedback.sqlite3` (override with `FEEDBACK_DB`). Submitted text can contain sensitive information; configure access and retention before collecting real user data. Analysis images/text are not automatically persisted. Report IDs reference client-provided analysis UUIDs and are not authenticated provenance. Review reports, correct labels, then manually promote confirmed indicators into configuration; reports never automatically poison the blocklist.
 

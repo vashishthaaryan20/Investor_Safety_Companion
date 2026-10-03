@@ -46,10 +46,6 @@ export function parseErrorKind(value: unknown): ContextErrorKind {
   return ERROR_KINDS.includes(value as ContextErrorKind) ? (value as ContextErrorKind) : "failed";
 }
 
-function captureDir() {
-  return new Directory(Paths.cache, DIR_NAME);
-}
-
 /** Reads a capture by id. Text is loaded into memory and its file removed straight away. */
 export async function loadCapture(
   id: string | undefined,
@@ -71,13 +67,29 @@ export async function loadCapture(
   }
 }
 
-/** True for files this feature created, so other images (gallery picks) are never deleted. */
-export function isCaptureUri(uri: string | null | undefined): uri is string {
-  return !!uri && uri.startsWith(captureDir().uri);
+/**
+ * Cache folders holding this app's temporary copies: tile captures and shared content, and
+ * expo-image-picker's copies of gallery picks and camera photos. Originals in the gallery
+ * are never touched.
+ */
+const TEMP_DIR_NAMES = [DIR_NAME, "ImagePicker"];
+
+function tempDirs() {
+  return TEMP_DIR_NAMES.map((name) => new Directory(Paths.cache, name));
 }
 
-export function deleteCapture(uri: string | null | undefined) {
-  if (!isCaptureUri(uri)) return;
+/** True for temporary copies this app made, so nothing else is ever deleted. */
+export function isTempFileUri(uri: string | null | undefined): uri is string {
+  if (!uri || Platform.OS === "web") return false;
+  try {
+    return tempDirs().some((dir) => uri.startsWith(dir.uri.endsWith("/") ? dir.uri : `${dir.uri}/`));
+  } catch {
+    return false;
+  }
+}
+
+export function deleteTempFile(uri: string | null | undefined) {
+  if (!isTempFileUri(uri)) return;
   try {
     const file = new File(uri);
     if (file.exists) file.delete();
@@ -86,20 +98,24 @@ export function deleteCapture(uri: string | null | undefined) {
   }
 }
 
-/** Removes captures left behind by checks that were abandoned (for example, the app was closed). */
-export function purgeStaleCaptures() {
-  if (Platform.OS !== "android") return;
-  try {
-    const dir = captureDir();
-    if (!dir.exists) return;
-    const now = Date.now();
-    for (const entry of dir.list()) {
-      if (!(entry instanceof File)) continue;
-      const modified = entry.lastModified ?? 0;
-      if (now - modified > STALE_AFTER_MS) entry.delete();
+/**
+ * Deletes temporary copies left behind by abandoned checks (for example, the app was closed
+ * on the preview). `keep` protects the screenshot currently waiting to be sent.
+ */
+export function purgeTempFiles({ keep, olderThanMs = STALE_AFTER_MS }: { keep?: string | null; olderThanMs?: number } = {}) {
+  if (Platform.OS === "web") return;
+  const now = Date.now();
+  for (const dir of tempDirs()) {
+    try {
+      if (!dir.exists) continue;
+      for (const entry of dir.list()) {
+        if (!(entry instanceof File) || entry.uri === keep) continue;
+        const modified = entry.lastModified ?? 0;
+        if (now - modified >= olderThanMs) entry.delete();
+      }
+    } catch {
+      // Best effort; Android also clears the cache when storage runs low.
     }
-  } catch {
-    // Best effort; Android also clears the cache when storage runs low.
   }
 }
 

@@ -15,6 +15,7 @@ import {
   toApiError,
 } from "@/services/api";
 import { useScan } from "@/state/scan-store";
+import { devError } from "@/utils/dev-log";
 
 const IMAGE_STEPS = [
   "Uploading your screenshot",
@@ -115,7 +116,7 @@ export default function AnalyzingScreen() {
       } catch (error) {
         const apiError = toApiError(error);
         if (!active || apiError.kind === "cancelled") return;
-        console.error("Analysis failed:", apiError.kind, apiError.message);
+        devError("Analysis failed:", apiError.kind);
         failScan(apiError);
         router.replace("/scan-error");
       }

@@ -507,6 +507,19 @@ export function InfoNote({
   );
 }
 
+/** What leaves the phone when a check is sent. Shown before every send. */
+export function SendDisclosure({ kind, action }: { kind: "image" | "text"; action: string }) {
+  const content = kind === "image" ? "this picture" : "this message";
+  return (
+    <InfoNote>
+      Tapping “{action}” sends only {content} and the question you picked. The server checks it
+      and keeps nothing.{kind === "image" ? " The picture is deleted from your phone afterwards." : ""}{" "}
+      History keeps the result with phone, card, account numbers and codes masked, and you can
+      delete it anytime.
+    </InfoNote>
+  );
+}
+
 const styles = StyleSheet.create({
   button: {
     minHeight: Layout.buttonHeight,

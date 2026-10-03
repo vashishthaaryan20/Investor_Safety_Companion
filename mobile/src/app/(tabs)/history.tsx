@@ -58,7 +58,7 @@ export default function HistoryScreen() {
   const confirmDelete = async (record: ScanRecord) => {
     const confirmed = await confirmAction({
       title: "Delete this check?",
-      message: "It will be removed from this phone.",
+      message: "The result and the text we read will be removed from this phone.",
       confirmLabel: "Delete",
       destructive: true,
     });
@@ -120,8 +120,10 @@ export default function HistoryScreen() {
           </AppText>
         </View>
         <AppText variant="caption">
-          We save the text we read and the result, never your screenshot. Saved text can still
-          include personal details, so clear your history if you share this phone.
+          We save the result and the text we read, never your screenshot. Phone, card and account
+          numbers, emails and codes are masked before saving. Names or other details can still
+          appear, so clear your history if you share this phone. Clearing it also removes any
+          leftover temporary copies.
         </AppText>
         <View style={styles.toggleRow}>
           <View style={styles.flex}>

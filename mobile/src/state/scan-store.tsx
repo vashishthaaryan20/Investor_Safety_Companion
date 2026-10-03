@@ -1,8 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { AppState } from "react-native";
 
 import type { AnalysisFocus } from "@/constants/analysis-focus";
 import type { AnalysisResult, ApiError } from "@/services/api";
-import { deleteCapture, purgeStaleCaptures } from "@/services/screen-context";
+import { redactResult, redactText } from "@/services/redact";
+import { deleteTempFile, purgeTempFiles } from "@/services/screen-context";
 import {
   DEFAULT_SETTINGS,
   MAX_HISTORY,
@@ -66,7 +68,7 @@ function makeLocalId() {
 
 function buildPreview(draft: ScanDraft, result: AnalysisResult) {
   const source = draft.mode === "text" ? draft.text : result.extracted_text ?? "";
-  const firstLine = source.trim().split("\n")[0]?.trim();
+  const firstLine = redactText(source.trim().split("\n")[0]?.trim() ?? "");
   return (firstLine || (draft.mode === "image" ? "Screenshot" : "Message")).slice(0, 120);
 }
 
@@ -79,9 +81,16 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<ScanRecord[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [settings, setSettings] = useState<HistorySettings>(DEFAULT_SETTINGS);
+  // Every draft change goes through the store below, which keeps this in step with `draft`.
+  const draftRef = useRef(draft);
 
+  // Temporary copies from abandoned checks are removed at launch and whenever the app returns.
   useEffect(() => {
-    purgeStaleCaptures();
+    purgeTempFiles({ keep: draftRef.current.imageUri });
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") purgeTempFiles({ keep: draftRef.current.imageUri });
+    });
+    return () => subscription.remove();
   }, []);
 
   useEffect(() => {
@@ -112,9 +121,18 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
   const store: ScanStore = {
     draft,
-    updateDraft: (changes) => setDraft((current) => ({ ...current, ...changes })),
+    updateDraft: (changes) => {
+      // A replaced or removed screenshot is no longer needed on the phone.
+      const previous = draftRef.current.imageUri;
+      if ("imageUri" in changes && changes.imageUri !== previous) {
+        deleteTempFile(previous);
+      }
+      draftRef.current = { ...draftRef.current, ...changes };
+      setDraft((current) => ({ ...current, ...changes }));
+    },
     resetDraft: (mode = "image") => {
-      deleteCapture(draft.imageUri);
+      deleteTempFile(draftRef.current.imageUri);
+      draftRef.current = { ...EMPTY_DRAFT, mode };
       setDraft({ ...EMPTY_DRAFT, mode });
     },
     result,
@@ -125,8 +143,11 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     historyLoaded,
     settings,
     completeScan: (next) => {
-      // A failed check keeps the screen capture so "Try again" can resend it.
-      deleteCapture(draft.imageUri);
+      // A failed check keeps the screenshot so "Try again" can resend it; a finished one doesn't.
+      const finished = draftRef.current;
+      deleteTempFile(finished.imageUri);
+      draftRef.current = { ...finished, imageUri: null, text: "" };
+      setDraft((current) => ({ ...current, imageUri: null, text: "" }));
       setResult(next);
       setError(null);
       setResultSource("scan");
@@ -139,9 +160,9 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       const record: ScanRecord = {
         id: next.analysis_id ?? makeLocalId(),
         createdAt: Date.now(),
-        mode: draft.mode,
-        preview: buildPreview(draft, next),
-        result: next,
+        mode: finished.mode,
+        preview: buildPreview(finished, next),
+        result: redactResult(next),
       };
       setActiveRecordId(record.id);
       setHistory((records) =>
@@ -167,6 +188,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     clearHistory: () => {
       setHistory([]);
       setActiveRecordId(null);
+      // Also drop any temporary copies still on the phone, except one waiting to be sent.
+      purgeTempFiles({ keep: draftRef.current.imageUri, olderThanMs: 0 });
     },
     setSaveHistory: (enabled) => {
       const next = { ...settings, saveHistory: enabled };

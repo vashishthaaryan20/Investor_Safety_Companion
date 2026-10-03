@@ -12,6 +12,7 @@ import {
   Card,
   IconButton,
   InfoNote,
+  SendDisclosure,
   SectionHeader,
   TextLink,
   type IconName,
@@ -19,7 +20,7 @@ import {
 import { DEFAULT_FOCUS, FOCUS_OPTIONS, type AnalysisFocus } from "@/constants/analysis-focus";
 import { Colors, Radius, Space, type Tone } from "@/constants/design";
 import {
-  deleteCapture,
+  deleteTempFile,
   loadCapture,
   parseErrorKind,
   type ContextErrorKind,
@@ -213,7 +214,7 @@ export default function ScreenContextScreen() {
     });
     if (!confirmed) return;
     if (state.status === "ready" && state.content.kind === "image") {
-      deleteCapture(state.content.uri);
+      deleteTempFile(state.content.uri);
     }
     resetDraft("image");
     BackHandler.exitApp();
@@ -428,10 +429,10 @@ export default function ScreenContextScreen() {
         </View>
       </View>
 
-      <InfoNote>
-        Only this {content.kind === "image" ? "picture" : "text"} is sent, and only when you tap
-        “Send for checking”. The temporary copy on your phone is deleted after the check. SANGYAN
-        Shield never watches your screen in the background.
+      <SendDisclosure kind={content.kind} action="Send for checking" />
+      <InfoNote icon="eye-off-outline">
+        SANGYAN Shield never watches your screen in the background. It takes one picture only when
+        you tap the tile, then stops.
       </InfoNote>
     </Screen>
   );

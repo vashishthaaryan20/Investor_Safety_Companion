@@ -1,9 +1,6 @@
-import { Redirect, useLocalSearchParams } from "expo-router";
+import { Redirect } from "expo-router";
 
-/** Kept for links that pass an image `uri`; the shared Quick Capture flow handles it. */
+/** Old link target. Any `uri` parameter is dropped: other apps must not choose what gets uploaded. */
 export default function ScamCheck() {
-  const { uri } = useLocalSearchParams<{ uri?: string }>();
-  return (
-    <Redirect href={uri ? { pathname: "/quick-capture", params: { uri } } : "/quick-capture"} />
-  );
+  return <Redirect href="/quick-capture" />;
 }

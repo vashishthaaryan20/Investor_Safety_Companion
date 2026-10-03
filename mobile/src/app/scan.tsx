@@ -10,6 +10,7 @@ import {
   AppText,
   Card,
   InfoNote,
+  SendDisclosure,
   OptionCard,
   TextLink,
   type IconName,
@@ -23,6 +24,8 @@ import {
 import { useScan, type ScanMode } from "@/state/scan-store";
 
 const MIN_TEXT_LENGTH = 10;
+// Same limit as the server.
+const MAX_TEXT_LENGTH = 20_000;
 
 const SAMPLE_MESSAGES = [
   {
@@ -220,6 +223,7 @@ export default function ScanScreen() {
             multiline
             value={draft.text}
             onChangeText={(text) => updateDraft({ text })}
+            maxLength={MAX_TEXT_LENGTH}
             placeholder="Paste or type the message you received…"
             placeholderTextColor={Colors.subtle}
             accessibilityLabel="Message to check"
@@ -258,10 +262,12 @@ export default function ScanScreen() {
 
       {notice && <PickResultNotice result={notice} onRetry={pickImage} />}
 
-      <InfoNote>
-        Your content is only used for this check. Hide bank details and OTPs before sharing a
-        screenshot.
-      </InfoNote>
+      {draft.mode === "image" && (
+        <InfoNote icon="eye-outline">
+          Hide bank details and OTPs before sharing a screenshot.
+        </InfoNote>
+      )}
+      <SendDisclosure kind={draft.mode} action="Check for scam signs" />
     </Screen>
   );
 }
