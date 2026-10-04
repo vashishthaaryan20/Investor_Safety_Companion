@@ -177,7 +177,7 @@ python -m phishing_detector.cli check-images $env:DATA_DIR
 This does not train or activate a model. Set `DATA_DIR` in the training process environment or your ignored `.env` before a later training run. Keep the source files available; duplicate records reference their retained original in the manifest.
 
 
-## Training on the RTX laptop
+## Training on a GPU
 
 The portable launcher `python -m phishing_detector.train_all` runs image, URL, then message-text training, stopping on any error. All selected datasets pass preflight before any model fits. Paths in `training.json` are relative to that configuration file, not your Windows username or terminal directory. No S3 publishing or automatic model activation occurs.
 
