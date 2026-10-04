@@ -24,10 +24,17 @@ import {
   SectionHeader,
   TextLink,
 } from "@/components/sangyan/ui";
-import { Colors, Radius, Space, ToneColors, Typography } from "@/constants/design";
+import { Colors, Gradients, Radius, Space, ToneColors, Typography } from "@/constants/design";
 import { buildReasonSentence, buildSafetyPlan, getRelatedTopics } from "@/constants/guidance";
 import { getLearnTopic, type LearnTopicId } from "@/constants/learn-content";
-import { getConfidenceCopy, getHeadline, getRiskCopy, getRiskScore } from "@/constants/risk";
+import {
+  getClassificationLine,
+  getConfidenceCopy,
+  getHeadline,
+  getModelChecks,
+  getLevelCopy,
+  getRiskScore,
+} from "@/constants/risk";
 import { useScan } from "@/state/scan-store";
 import { confirmAction } from "@/utils/confirm";
 import { formatDateTime } from "@/utils/format-date";
@@ -59,7 +66,7 @@ export default function ResultScreen() {
 
   useEffect(() => {
     if (!result || !fromScan) return;
-    const copy = getRiskCopy(result.risk.level);
+    const copy = getLevelCopy(result);
     const { value, max } = getRiskScore(result);
     AccessibilityInfo.announceForAccessibility(
       `Check complete. ${copy.label}, score ${value} out of ${max}. ${getHeadline(result)}.`
@@ -72,7 +79,7 @@ export default function ResultScreen() {
     return <Redirect href="/" />;
   }
 
-  const risk = getRiskCopy(result.risk.level);
+  const risk = getLevelCopy(result);
   const headline = getHeadline(result);
   const score = getRiskScore(result);
   const confidence = getConfidenceCopy(result);
@@ -83,6 +90,8 @@ export default function ResultScreen() {
     : [];
   const processingSeconds =
     typeof metadata?.processing_time_ms === "number" ? metadata.processing_time_ms / 1000 : undefined;
+  const classificationLine = getClassificationLine(result);
+  const modelChecks = getModelChecks(result);
   const sourceText = result.extracted_text?.trim() ?? "";
   const isLong = sourceText.length > PREVIEW_CHARS;
   const visibleText =
@@ -193,10 +202,15 @@ export default function ResultScreen() {
             accessibilityRole="header"
             accessibilityLabel={`${risk.label}, score ${score.value} out of ${score.max}. ${headline}.`}
           >
-            <IconBadge icon={risk.icon} color={Colors.inverse} background={risk.color} size={52} />
+            <IconBadge icon={risk.icon} color={Colors.background} background={risk.color} size={52} />
             <View style={styles.heroTitles}>
               <RiskBadge risk={risk} score={score} inverse />
               <AppText variant="title">{headline}</AppText>
+              {!!classificationLine && (
+                <AppText variant="caption" tone="muted">
+                  {classificationLine}
+                </AppText>
+              )}
             </View>
           </View>
           <View style={styles.meterBlock}>
@@ -415,7 +429,7 @@ export default function ResultScreen() {
 
       {!!result.analysis_id && <ReportCard analysisId={result.analysis_id} text={sourceText} />}
 
-      {(processingSeconds !== undefined || unavailableChecks.length > 0) && (
+      {(processingSeconds !== undefined || unavailableChecks.length > 0 || modelChecks.length > 0) && (
         <Card style={styles.cardGap}>
           <SectionHeader icon="information-circle-outline" title="About this check" />
           {processingSeconds !== undefined && (
@@ -424,6 +438,11 @@ export default function ResultScreen() {
               {metadata?.engine_version ? ` · Engine ${metadata.engine_version}` : ""}
             </AppText>
           )}
+          {modelChecks.map((check) => (
+            <AppText key={check.label} variant="caption" tone="muted">
+              {check.label}: {check.value}
+            </AppText>
+          ))}
           {unavailableChecks.length > 0 && (
             <AppText variant="caption" tone="muted">
               Not available for this check: {unavailableChecks.join(", ")}. The result is based on the
@@ -498,7 +517,7 @@ const styles = StyleSheet.create({
     padding: Space.md,
     borderRadius: Radius.md,
     borderWidth: 1,
-    backgroundColor: "rgba(255,255,255,0.75)",
+    backgroundColor: Colors.glass,
   },
   reasonBox: {
     gap: Space.xs,
@@ -534,6 +553,7 @@ const styles = StyleSheet.create({
     padding: Space.lg,
     borderRadius: Radius.lg,
     backgroundColor: Colors.primary,
+    experimental_backgroundImage: Gradients.hero,
   },
   helpActions: {
     flexDirection: "row",

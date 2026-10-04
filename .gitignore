@@ -33,6 +33,7 @@ mobile/ios/
 # Local-only files
 /venv
 tree_output.txt
-anweshabackend/uploads/
-anweshabackend/validation/.fault
+mobile server/uploads/
+mobile server/validation/.fault
+.pytest_cache/
 tempCodeRunnerFile.*

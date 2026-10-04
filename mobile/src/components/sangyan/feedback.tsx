@@ -140,7 +140,7 @@ export function EmergencyBanner({ onPress }: { onPress: () => void }) {
       accessibilityLabel="Lost money or shared your OTP? Get step-by-step emergency help now."
       style={({ pressed }) => [styles.emergency, pressed && { opacity: 0.85 }]}
     >
-      <IconBadge icon="medkit" color={Colors.inverse} background={Colors.critical} size={44} />
+      <IconBadge icon="medkit" color={Colors.background} background={Colors.critical} size={44} />
       <View style={styles.flex}>
         <AppText variant="bodyStrong" tone="critical">
           Lost money or shared your OTP?
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#B7E0D9",
+    borderColor: ToneColors.brand.border,
   },
   illustrationDot: {
     position: "absolute",
@@ -435,8 +435,8 @@ const styles = StyleSheet.create({
     left: 10,
     width: 10,
     height: 10,
-    backgroundColor: Colors.primary,
-    opacity: 0.25,
+    backgroundColor: Colors.accent,
+    opacity: 0.35,
   },
   emptyButton: {
     alignSelf: "stretch",

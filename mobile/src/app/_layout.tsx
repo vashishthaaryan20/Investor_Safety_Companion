@@ -1,4 +1,4 @@
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
@@ -14,12 +14,12 @@ export const unstable_settings = {
 };
 
 const theme = {
-  ...DefaultTheme,
+  ...DarkTheme,
   colors: {
-    ...DefaultTheme.colors,
-    primary: Colors.secondary,
+    ...DarkTheme.colors,
+    primary: Colors.accent,
     background: Colors.background,
-    card: Colors.background,
+    card: Colors.backgroundTop,
     text: Colors.ink,
     border: Colors.border,
     notification: Colors.critical,
@@ -30,13 +30,13 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={theme}>
       <ScanProvider>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <AnimatedSplashOverlay />
         <Stack
           screenOptions={{
-            headerStyle: { backgroundColor: Colors.background },
+            headerStyle: { backgroundColor: Colors.backgroundTop },
             headerShadowVisible: false,
-            headerTintColor: Colors.primary,
+            headerTintColor: Colors.accent,
             headerTitleStyle: { fontWeight: '800', fontSize: 18, color: Colors.ink },
             headerBackButtonDisplayMode: 'minimal',
             contentStyle: { backgroundColor: Colors.background },

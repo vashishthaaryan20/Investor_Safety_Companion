@@ -101,11 +101,27 @@ _status_lock = threading.Lock()
 _status: dict[str, Any] = {"ocr": "not_loaded"}
 
 
+def _plan_model(kind: str, path, library: str) -> dict[str, str]:
+    from phishing_detector import artifacts
+
+    if find_spec(library) is None:
+        return {"status": "unavailable", "reason": f"{library} is not installed."}
+    if not path.is_file():
+        return {"status": "unavailable", "reason": f"No {kind} model file at the configured path."}
+    if artifacts.thresholds_for(kind, path) is None:
+        return {
+            "status": "unavailable",
+            "reason": f"The {kind} model file has no validated thresholds; "
+            "run python -m phishing_detector.thresholds choose.",
+        }
+    return {"status": "available", "reason": "Validated model found; loaded at startup."}
+
+
 def _plan_image_classifier() -> dict[str, str]:
     from phishing_detector import config, storage
 
     if config.MODEL_PATH.exists():
-        return {"status": "available", "reason": "Weights found locally; loaded on first screenshot."}
+        return _plan_model("image", config.MODEL_PATH, "torch")
     missing = [
         label
         for label, present in (
@@ -125,19 +141,13 @@ def _plan_image_classifier() -> dict[str, str]:
     }
 
 
-def _plan_text_classifier() -> dict[str, str]:
-    path = os.getenv("TEXT_MODEL_PATH")
-    if not path:
-        return {"status": "not_configured", "reason": "TEXT_MODEL_PATH is not set."}
-    if not os.path.exists(path) or find_spec("sklearn") is None:
-        return {"status": "unavailable", "reason": "Text model file or scikit-learn is missing."}
-    return {"status": "available", "reason": "Loaded on first check."}
-
-
 def refresh_model_status() -> None:
+    from phishing_detector import artifacts
+
     with _status_lock:
         _status["image_classifier"] = _plan_image_classifier()
-        _status["text_classifier"] = _plan_text_classifier()
+        _status["text_classifier"] = _plan_model("text", artifacts.model_path("text"), "sklearn")
+        _status["url_classifier"] = _plan_model("url", artifacts.model_path("url"), "sklearn")
 
 
 def _set_status(key: str, value: Any) -> None:
@@ -149,18 +159,21 @@ def engine_status() -> dict[str, Any]:
     with _status_lock:
         image = dict(_status["image_classifier"])
         text = dict(_status["text_classifier"])
+        url = dict(_status["url_classifier"])
         ocr = _status["ocr"]
     degraded = []
     if ocr == "failed":
         degraded.append("Text recognition (OCR) failed to load.")
-    if image["status"] == "unavailable":
-        degraded.append("Image classifier: " + image["reason"])
+    for label, model in (("Image", image), ("Text", text), ("URL", url)):
+        if model["status"] == "unavailable":
+            degraded.append(f"{label} classifier: " + model["reason"])
     return {
         "ready": ocr != "failed" and not (REQUIRE_IMAGE_MODEL and image["status"] == "unavailable"),
         "ocr": ocr,
         "rules": "ready",
         "image_classifier": image,
         "text_classifier": text,
+        "url_classifier": url,
         "external_reputation": "not_implemented",
         "degraded": degraded,
     }
@@ -179,13 +192,56 @@ def log_startup_status() -> None:
         )
     else:
         log.info("Image classifier: %s", image["reason"])
-    log.info("Text classifier: %s", status["text_classifier"]["status"])
+    for key, label in (("text_classifier", "Text"), ("url_classifier", "URL")):
+        model = status[key]
+        if model["status"] == "unavailable":
+            log.warning("%s classifier unavailable: %s", label, model["reason"])
+        else:
+            log.info("%s classifier: %s", label, model["reason"])
+
+
+def load_models() -> None:
+    """Load each validated model once, so the first check does not pay the load time."""
+    from phishing_detector import artifacts
+    from phishing_detector.text_ml import _vocabulary, load_model
+
+    for key, kind in (("text_classifier", "text"), ("url_classifier", "url")):
+        if engine_status()[key]["status"] != "available":
+            continue
+        started = time.perf_counter()
+        try:
+            path = str(artifacts.model_path(kind))
+            load_model(path)
+            if kind == "text":
+                _vocabulary(path)
+        except Exception as exc:
+            _set_status(key, {"status": "unavailable", "reason": "The model failed to load; see the server log."})
+            log.error("%s model failed to load: %s", kind, where(exc))
+            continue
+        _set_status(key, {"status": "loaded", "reason": "Model loaded."})
+        log.info("%s model loaded in %.1fs", kind, time.perf_counter() - started)
+    if engine_status()["image_classifier"]["status"] == "available":
+        from phishing_detector.model import get_classifier
+
+        started = time.perf_counter()
+        try:
+            get_classifier()
+        except Exception as exc:
+            _set_status(
+                "image_classifier",
+                {"status": "unavailable", "reason": "The model failed to load; see the server log."},
+            )
+            log.error("image model failed to load: %s", where(exc))
+        else:
+            _set_status("image_classifier", {"status": "loaded", "reason": "Model loaded."})
+            log.info("image model loaded in %.1fs", time.perf_counter() - started)
 
 
 def warm_up() -> None:
-    """Load the OCR reader ahead of the first screenshot (it takes several seconds)."""
+    """Load the models and the OCR reader ahead of the first check (they take several seconds)."""
     from phishing_detector.ocr import get_reader
 
+    load_models()
     _set_status("ocr", "loading")
     started = time.perf_counter()
     try:
@@ -286,10 +342,56 @@ UNAVAILABLE_LABELS = {
     "blocklist": "Reported-scam list",
     "image_classifier": "Image classifier (visual check)",
     "text_ml": "Text classifier",
+    "url_ml": "Link classifier",
     "rdap": "Domain age lookup",
     "safe_browsing": "Google Safe Browsing lookup",
     "phishtank_openphish": "PhishTank / OpenPhish lookup",
 }
+# A missing trained model makes the result PARTIAL; lookups that were never built do not.
+MODEL_DETECTORS = {"text_ml", "url_ml", "image_classifier"}
+RISK_CATEGORY = {
+    "HIGH_ATTENTION": "HIGH",
+    "ELEVATED": "MEDIUM",
+    "MODERATE": "MEDIUM",
+    "LOW_ATTENTION": "LOW",
+    "INCONCLUSIVE": "UNKNOWN",
+}
+CLASSIFICATION = {
+    "HIGH": "likely_scam",
+    "MEDIUM": "suspicious",
+    "LOW": "no_strong_indicators",
+    "UNKNOWN": "undetermined",
+}
+# Below this OCR read quality, words may have been misread or missed.
+LOW_READ_CONFIDENCE = 0.6
+
+
+def summarize(level: str, detectors: list[dict], confidence: float | None, explanation: str):
+    """(category, classification, analysis_status, explanation) for a finished analysis."""
+    category = RISK_CATEGORY[level]
+    missing = [
+        UNAVAILABLE_LABELS.get(d["name"], d["name"])
+        for d in detectors
+        if d["name"] in MODEL_DETECTORS and d["status"] in {"unavailable", "not_configured"}
+    ]
+    classification = CLASSIFICATION[category]
+    if category == "UNKNOWN":
+        return category, classification, "INCONCLUSIVE", explanation
+    notes = []
+    if missing:
+        notes.append(
+            f"Some checks could not run ({', '.join(missing)}), so this result is incomplete."
+        )
+        if category == "LOW":
+            classification = "undetermined"
+    if confidence is not None and confidence < LOW_READ_CONFIDENCE:
+        notes.append("Parts of the screenshot were hard to read, so some signs may have been missed.")
+    return (
+        category,
+        classification,
+        "PARTIAL" if missing else "COMPLETED",
+        " ".join([explanation, *notes]),
+    )
 
 
 def build_response(
@@ -314,27 +416,44 @@ def build_response(
         extra_signals=detector_signals(detectors),
         engine_risk=engine.risk.model_dump(),
         typed=typed,
+        visual_tier=legacy.get("tier"),
+    )
+    confidence = read_confidence(tokens, engine.text, typed)
+    category, classification, analysis_status, explanation = summarize(
+        result["risk"]["level"], detectors, None if typed else confidence, result["explanation"]
     )
     response = {
         "analysis_id": engine.analysis_id,
         "analyzed_at": result["analyzed_at"],
         "status": result["status"],
+        "analysis_status": analysis_status,
+        "classification": classification,
         "analysis_mode": mode,
         "extracted_text": engine.text,
         "detected_urls": result["detected_urls"],
         "risk": {
             **result["risk"],
+            "category": category,
             "score_max": 100,
-            "confidence": read_confidence(tokens, engine.text, typed),
+            "confidence": confidence,
             "confidence_basis": "typed_text" if typed else "ocr_read_quality",
             "engine_level": engine.risk.level,
             "engine_score": engine.risk.score,
         },
         "signals": result["signals"],
-        "explanation": result["explanation"],
+        "explanation": explanation,
         "verification": result["verification"],
         "recommendation": result["recommendation"],
-        "detectors": [{"name": d["name"], "status": d["status"], "score": d["score"]} for d in detectors],
+        "detectors": [
+            {
+                "name": d["name"],
+                "status": d["status"],
+                "score": d["score"],
+                "model_score": d.get("model_score"),
+                "tier": d.get("tier"),
+            }
+            for d in detectors
+        ],
         "metadata": {
             "processing_time_ms": _ms(started),
             "ocr_time_ms": ocr_ms,

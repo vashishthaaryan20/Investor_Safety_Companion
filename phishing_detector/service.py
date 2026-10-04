@@ -1,9 +1,9 @@
 """Orchestration: one OCR pass, independent detectors, one response."""
 
 import logging
-import os
 from uuid import uuid4
 
+from . import artifacts
 from .detectors import (
     Detection,
     Finding,
@@ -66,7 +66,7 @@ def analyze_text(text, tokens=None, settings=None, extra_detections=()):
     ]
     from .text_ml import detect
 
-    text_detection = detect(text, os.getenv("TEXT_MODEL_PATH"))
+    text_detection = detect(text, artifacts.model_path("text"))
     if tokens:
         # Region confidence also qualifies the learned text signal.
         weight = sum(max(1, len(t["text"])) for t in tokens)
@@ -76,7 +76,13 @@ def analyze_text(text, tokens=None, settings=None, extra_detections=()):
     detections.append(text_detection)
     from .url_ml import detect as detect_urls
 
-    detections.append(detect_urls(entities, os.getenv("URL_MODEL_PATH")))
+    detections.append(
+        detect_urls(
+            entities,
+            artifacts.model_path("url"),
+            settings.get("official_domains", []),
+        )
+    )
     detections.extend(extra_detections)
     detections.append(detect_reputation(entities, settings["safe_browsing"]))
     detections.extend(
@@ -101,7 +107,8 @@ def analyze_text(text, tokens=None, settings=None, extra_detections=()):
             )
         ),
         "detectors": [d.to_dict() for d in detections],
-        "score_version": "rules-v1-uncalibrated",
+        # Rules plus trained models at validated tiers; the fused score is still not a probability.
+        "score_version": "rules-v1+models-training-v1",
     }
     pipeline_stage(4, "Fuse evidence and build explanation")
     result.update(fuse(detections, text, tokens, settings["fusion"]))
@@ -148,26 +155,47 @@ def classify_image(image, box=None, classify="full"):
     if classify not in ("full", "crop", None):
         raise ValueError("classify must be full, crop, or None")
     detection = Detection("image_classifier", "disabled")
-    legacy = {"label": None, "confidence": None, "probs": None, "warning": None}
+    legacy = {
+        "label": None,
+        "confidence": None,
+        "probs": None,
+        "tier": None,
+        "warning": None,
+    }
     if classify:
         try:
+            from . import config
             from .model import get_classifier, predict_image
 
+            if not config.MODEL_PATH.is_file():
+                raise FileNotFoundError(config.MODEL_PATH)
+            thresholds = artifacts.thresholds_for("image", config.MODEL_PATH)
+            if thresholds is None:
+                detection = Detection(
+                    "image_classifier",
+                    "unavailable",
+                    detail="No validated thresholds for this image model file",
+                )
+                legacy["warning"] = detection.detail
+                return detection, legacy
             target = crop_region(image, box) if classify == "crop" else image
             label, confidence, probs = predict_image(get_classifier(), target)
+            score = probs["phishing"] / 100
+            level = artifacts.tier(score, thresholds)
             detection = Detection(
-                "image_classifier",
-                findings=[
+                "image_classifier", model_score=round(score, 4), tier=level
+            )
+            if level:
+                detection.findings.append(
                     Finding(
                         "image_classifier",
-                        probs["phishing"] / 100,
+                        artifacts.TIER_SCORES[level],
                         "Visual classifier signal",
-                        "The image model found visual patterns associated with phishing.",
+                        "The image model found visual patterns similar to known phishing web pages.",
                         "ResNet50",
                     )
-                ],
-            )
-            legacy.update(label=label, confidence=confidence, probs=probs)
+                )
+            legacy.update(label=label, confidence=confidence, probs=probs, tier=level)
         except Exception:
             logging.getLogger(__name__).exception(
                 "Optional image classifier unavailable"

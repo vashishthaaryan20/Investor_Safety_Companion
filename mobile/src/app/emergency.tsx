@@ -12,7 +12,7 @@ import {
   SectionHeader,
   type IconName,
 } from "@/components/sangyan/ui";
-import { Colors, Layout, Radius, Space } from "@/constants/design";
+import { Colors, Gradients, Layout, Radius, Space } from "@/constants/design";
 import { openLink } from "@/utils/open-link";
 
 interface EmergencyStep {
@@ -203,7 +203,7 @@ export default function EmergencyScreen() {
                   active && styles.optionActive,
                 ]}
               >
-                <Ionicons name={item.icon} size={22} color={active ? Colors.inverse : Colors.primary} />
+                <Ionicons name={item.icon} size={22} color={active ? Colors.inverse : Colors.accent} />
                 <AppText
                   variant="label"
                   tone={active ? "inverse" : "primary"}
@@ -255,7 +255,7 @@ export default function EmergencyScreen() {
       <View>
         <SectionHeader icon="folder-open-outline" title="Keep these details ready" />
         <Card>
-          <BulletList items={KEEP_READY} color={Colors.primary} />
+          <BulletList items={KEEP_READY} color={Colors.accent} />
         </Card>
       </View>
 
@@ -279,8 +279,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   hero: {
-    backgroundColor: Colors.critical,
+    backgroundColor: Colors.dangerPanel,
+    experimental_backgroundImage: Gradients.danger,
     borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.criticalBorder,
     padding: Space.xl,
     gap: Space.md,
   },

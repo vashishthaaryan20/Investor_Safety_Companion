@@ -128,7 +128,7 @@ def evaluate_pipeline(manifest_path, output, split, classify="full"):
         "split": split,
         "summary": summarize(rows),
         "rows": rows,
-        "score_version": "rules-v1-uncalibrated",
+        "score_version": "rules-v1+models-training-v1",
         "settings": settings,
         "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
     }

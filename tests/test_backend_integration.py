@@ -17,7 +17,7 @@ from PIL import Image
 
 os.environ.setdefault("SANGYAN_RATE_LIMIT", "10000")
 os.environ["SANGYAN_WARMUP"] = "0"
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "anweshabackend"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mobile server"))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -69,9 +69,10 @@ def upload(client, data=None):
 def test_health_reports_engine_status(client):
     body = client.get("/api/v1/health").json()
     assert body["status"] == "ok"
-    assert body["contract_version"] == "1.0"
+    assert body["contract_version"] == "1.1"
     engine = body["engine"]
     assert engine["rules"] == "ready"
+    assert {"text_classifier", "url_classifier"} <= engine.keys()
     assert engine["image_classifier"]["status"] == "unavailable"
     assert any("Image classifier" in reason for reason in engine["degraded"])
 
@@ -114,12 +115,13 @@ def test_model_loads_successfully(client, monkeypatch):
         "image_classifier",
         findings=[Finding("image_classifier", 0.9, "Visual classifier signal", "Visual match", "ResNet50")],
     )
-    legacy = {"label": "phishing", "confidence": 90.0, "probs": None, "warning": None}
+    legacy = {"label": "phishing", "confidence": 90.0, "probs": None, "tier": "high", "warning": None}
     monkeypatch.setattr("phishing_detector.service.classify_image", lambda *a, **k: (detection, legacy))
     with fake_ocr("Please log in to continue to your account dashboard"):
         body = upload(client).json()
     assert engine_adapter.engine_status()["image_classifier"]["status"] == "loaded"
-    assert {"name": "image_classifier", "status": "ok", "score": 0.9} in body["detectors"]
+    image = next(d for d in body["detectors"] if d["name"] == "image_classifier")
+    assert (image["status"], image["score"]) == ("ok", 0.9)
     visual = next(s for s in body["signals"] if s["id"] == "phishing_visual")
     assert visual["origin"] == "engine"
     assert "Image classifier (visual check)" not in body["metadata"]["unavailable_checks"]
@@ -129,7 +131,11 @@ def test_model_missing_degrades_with_disclosure(client):
     with fake_ocr(SCAM):
         response = upload(client)
     assert response.status_code == 200
-    assert {"name": "image_classifier", "status": "unavailable", "score": 0} in response.json()["detectors"]
+    body = response.json()
+    image = next(d for d in body["detectors"] if d["name"] == "image_classifier")
+    assert (image["status"], image["score"]) == ("unavailable", 0)
+    assert body["analysis_status"] == "PARTIAL"
+    assert "incomplete" in body["explanation"]
 
 
 def test_model_missing_is_a_clear_error_when_required(client, monkeypatch):
@@ -312,20 +318,33 @@ def test_every_raised_level_has_a_visible_reason():
 def test_weak_visual_match_is_shown_not_hidden():
     result = analyze_content(
         "Login page for your trading account dashboard",
-        phishing_label="legitimate",
-        phishing_confidence=55,
+        phishing_label="phishing",
+        phishing_confidence=60,
         engine_risk={"level": "low", "score": 24.75},
+        visual_tier="medium",
     )
     assert result["risk"]["level"] == "MODERATE"
     assert any(s["id"] == "phishing_visual_weak" for s in result["signals"])
 
 
+def test_visual_score_below_the_validated_tier_adds_no_signal():
+    result = analyze_content(
+        "Login page for your trading account dashboard",
+        phishing_label="phishing",
+        phishing_confidence=57,
+        engine_risk={"level": "low", "score": 0},
+        visual_tier=None,
+    )
+    assert not any(s["category"] == "visual" for s in result["signals"])
+
+
 def test_weak_visual_match_alone_does_not_rate_an_unreadable_image():
     result = analyze_content(
         "",
-        phishing_label="legitimate",
+        phishing_label="phishing",
         phishing_confidence=60,
-        engine_risk={"level": "unknown", "score": 21.6},
+        engine_risk={"level": "unknown", "score": 24.75},
+        visual_tier="medium",
     )
     assert result["status"] == "inconclusive"
     assert result["risk"]["level"] == "INCONCLUSIVE"

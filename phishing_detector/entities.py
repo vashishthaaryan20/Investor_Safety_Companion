@@ -14,6 +14,20 @@ CONTEXT_CHARS = 100
 # Unicode labels and arbitrary suffixes; candidates are not proof of registration.
 DOMAIN_TEXT = r"(?:[^\W_](?:[\w-]{0,61}[^\W_])?\.)+(?:[^\W_][\w-]{1,62})"
 URL_PATTERN = re.compile(r"\b(?:https?://|www\.)[^\s<>\"'`]+", re.IGNORECASE)
+# A bare name like "ok.then" (a missing space after a full stop) is only taken as a domain
+# when it ends in one of these suffixes or carries a path, query or port.
+KNOWN_TLDS = frozenset(
+    """
+    com net org info biz edu gov mil int co io in me ly gy cc tk ml ga cf gq ru cn pw ws to
+    sh ai gd at de fr eu uk us au ca sg ae pk bd lk np ph my id vn br mx nl it es ch se no
+    jp kr hk tw za ng ke gl tv fm am be pl cz ua tr ir sa qa om kw bh il eg ma
+    app dev xyz top online site club live shop store tech website space fun icu buzz click
+    link sbs cfd cyou rest quest vip win bid loan money finance financial bank trade trading
+    market markets fund capital invest investments exchange crypto pro mobi today world news
+    services support help cloud digital network email page life global asia gold rich cash
+    example test
+    """.split()
+)
 DOMAIN_PATTERN = re.compile(
     r"(?<![\w@.-])" + DOMAIN_TEXT + r"(?::\d{1,5})?(?:[/?#][^\s<>\"'`]*)?",
     re.IGNORECASE,
@@ -276,6 +290,18 @@ def clean_entity(value):
     return value.strip()
 
 
+def plausible_bare_domain(value):
+    try:
+        parts = urlsplit("https://" + value)
+        host, port = parts.hostname or "", parts.port
+    except ValueError:
+        return False
+    suffix = host.rsplit(".", 1)[-1]
+    if suffix in KNOWN_TLDS or suffix.startswith("xn--"):
+        return True
+    return suffix.isalpha() and bool(parts.path.strip("/") or parts.query or port)
+
+
 # ENTITY NORMALIZATION
 
 
@@ -529,7 +555,7 @@ def extract_entities(text, ocr_tokens=None):
             start < url_end and end > url_start for url_start, url_end in url_spans
         )
 
-        if inside_url:
+        if inside_url or not plausible_bare_domain(value):
             continue
 
         add_entity("domain", value, start, end)

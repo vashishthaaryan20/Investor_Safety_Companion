@@ -38,6 +38,10 @@ torchvision==0.29.1
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uvicorn==0.54.0
+# Trained text and link classifiers (models/training-v1)
+joblib==1.6.0
+scikit-learn==1.9.1
+threadpoolctl==3.7.0
 # Existing model configuration and S3 storage
 boto3==1.43.108
 python-dotenv==1.2.4

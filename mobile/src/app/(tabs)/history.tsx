@@ -114,7 +114,7 @@ export default function HistoryScreen() {
     <View style={styles.footer}>
       <Card style={styles.privacyCard}>
         <View style={styles.privacyHeader}>
-          <Ionicons name="lock-closed-outline" size={20} color={Colors.primary} />
+          <Ionicons name="lock-closed-outline" size={20} color={Colors.accent} />
           <AppText variant="subheading" tone="ink" style={styles.flex} accessibilityRole="header">
             Your history stays on this phone
           </AppText>

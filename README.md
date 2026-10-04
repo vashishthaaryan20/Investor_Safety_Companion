@@ -1,19 +1,33 @@
 # Screenshot scam screening
 
-The backend screens screenshots for phishing/scam indicators. It does not determine whether arbitrary claims are true or detect every form of image fraud. Scores are provisional 0?100 risk indicators, not calibrated probabilities. Low risk is not a safety guarantee; unreadable input returns `unknown` (`INCONCLUSIVE` in the mobile API).
+The backend screens screenshots for phishing/scam indicators. It does not determine whether arbitrary claims are true or detect every form of image fraud. Scores are provisional 0-100 risk indicators, not calibrated probabilities. Low risk is not a safety guarantee; unreadable input returns `unknown` (`INCONCLUSIVE` in the mobile API).
 
 ## Start here
 
-The mobile app talks to `anweshabackend/server.py`. It runs this pipeline once per request, adds the investor-safety rules from `anweshabackend/safety_engine.py`, and serves the feedback endpoint. `src/main.py` is a smaller standalone API for the detector alone.
+The mobile app talks to `mobile server/server.py`. It runs this pipeline once per request, adds the investor-safety rules from `mobile server/safety_engine.py`, and serves the feedback endpoint. `src/main.py` is a smaller standalone API for the detector alone.
+
+Project layout (only `src/` is in git; data, models and the virtual environment stay beside it):
+
+```text
+CodeBlooded_Sangayan_submission/
+  data/      prepared datasets (training and evaluation only)
+  models/    training-v1/{text.joblib, url.joblib, image.pth}
+  src/       this repository: phishing_detector/, "mobile server"/, mobile/, tests/, docs/
+  venv/      Python virtual environment
+```
 
 ```powershell
-cd src
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-cd anweshabackend
+# From the project folder (the one containing data, models, src and venv)
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install -r src\requirements.txt
+cd "src\mobile server"
 python -m uvicorn server:app --host 0.0.0.0 --port 8000
 ```
+
+The server loads the three trained models from `../models/training-v1` at startup (override with `SANGYAN_MODELS_DIR` or `TEXT_MODEL_PATH` / `URL_MODEL_PATH` / `IMAGE_MODEL_PATH`). A model is used only if its SHA-256 matches `phishing_detector/model_thresholds.json`; otherwise the check reports `unavailable` and results are marked `PARTIAL`, never safe. See [docs/model-integration.md](docs/model-integration.md).
+
+Mobile app (Expo, from `src\mobile`): `npm install`, then `npx expo start --go --clear`. Colours, gradients and the dark theme live in `mobile/src/constants/design.ts`.
 
 Set your laptop address in `mobile/src/constants/api-config.json` (or `EXPO_PUBLIC_API_BASE_URL`), then run `npx expo prebuild` so the Android network rules allow it. Plain `http://` works only for local-network addresses; any other server must use `https://`. See [docs/privacy-security.md](docs/privacy-security.md) for what is sent, stored and deleted. Both existing upload routes remain supported. EasyOCR downloads its models on first use. Existing ResNet weights are loaded through `config.py` / `storage.py`; unavailable weights are reported without suppressing text checks.
 
@@ -21,14 +35,14 @@ Set your laptop address in `mobile/src/constants/api-config.json` (or `EXPO_PUBL
 
 | Stage | Module | Responsibility |
 | --- | --- | --- |
-| Transport | `anweshabackend/server.py`, `anweshabackend/security.py` | Validate uploads and requests; generic errors; run analysis outside the event loop with a timeout; feedback endpoint |
-| Adapter | `anweshabackend/engine_adapter.py`, `anweshabackend/contract.py` | OCR to engine, validate engine output, merge investor rules, validate the mobile response; see [docs/backend-integration.md](docs/backend-integration.md) |
+| Transport | `mobile server/server.py`, `mobile server/security.py` | Validate uploads and requests; generic errors; run analysis outside the event loop with a timeout; feedback endpoint |
+| Adapter | `mobile server/engine_adapter.py`, `mobile server/contract.py` | OCR to engine, validate engine output, merge investor rules, validate the mobile response; see [docs/backend-integration.md](docs/backend-integration.md) |
 | 0 | `phishing_detector/ocr.py` | Image loading, preprocessing, single OCR pass, region confidence and spans |
 | 1 | `phishing_detector/entities.py` | URLs/domains, email, phone, UPI, accounts/IFSC, wallet candidates, brands, secret requests |
 | 2 | `phishing_detector/detectors.py` | URL heuristics, text rules, brand/domain differences, reviewed local blocklist |
 | 2 | `phishing_detector/text_ml.py` | Optional TF-IDF/logistic regression training and inference |
 | 2 | `phishing_detector/model.py` | Existing ResNet50 image model |
-| 3?4 | `phishing_detector/fusion.py` | Weighted detector families, hard overrides, up to three reasons and one action |
+| 3-4 | `phishing_detector/fusion.py` | Weighted detector families, hard overrides, up to three reasons and one action |
 | Orchestration | `phishing_detector/service.py` | Connect stages and produce the mobile response |
 | 5 | `phishing_detector/feedback.py` | SQLite report queue, initially pending review |
 
@@ -57,14 +71,13 @@ These are fictional examples. Domain membership requires an exact host or a dot-
 - `POST /api/v1/save-image-json`: `{ "image": "<base64 or image data URI>" }`; same analysis under `result`.
 - `POST /api/v1/feedback`: `{ "analysis_id": "<UUID>", "kind": "wrong_verdict | report_scam", "note": "optional", "evidence_text": "optional" }`.
 
-Responses follow contract 1.0 (`anweshabackend/contract.py`): `risk` (level, score out of `score_max` 100, reading confidence), `signals` with evidence, `explanation`, `verification`, `recommendation`, `detectors` and `metadata` (timings, engine version, checks that could not run). Failures return `{"detail", "error"}` with 500/502/503/504 codes instead of a made-up result. Timeouts and model requirements are set with `SANGYAN_ANALYSIS_TIMEOUT_S`, `SANGYAN_LOCK_WAIT_S`, `SANGYAN_REQUIRE_IMAGE_MODEL` and `SANGYAN_WARMUP`. Upload limits are 10 MiB and 25 million pixels; only JPEG, PNG and WebP are accepted, request bodies are capped at 15 MiB, and each IP gets 30 POST requests per minute (`SANGYAN_RATE_LIMIT`). Set `SANGYAN_ENV=production` behind an HTTPS proxy to reject plain HTTP and hide the API docs. Add authentication before public exposure.
+Responses follow contract 1.1 (`mobile server/contract.py`): `analysis_status` (COMPLETED / PARTIAL / INCONCLUSIVE), `classification`, `risk` (level, category HIGH/MEDIUM/LOW/UNKNOWN, score out of `score_max` 100, reading confidence), `signals` with evidence, `explanation`, `verification`, `recommendation`, `detectors` and `metadata` (timings, engine version, checks that could not run). Failures return `{"detail", "error"}` with 500/502/503/504 codes instead of a made-up result. Timeouts and model requirements are set with `SANGYAN_ANALYSIS_TIMEOUT_S`, `SANGYAN_LOCK_WAIT_S`, `SANGYAN_REQUIRE_IMAGE_MODEL` and `SANGYAN_WARMUP`. Upload limits are 10 MiB and 25 million pixels; only JPEG, PNG and WebP are accepted, request bodies are capped at 15 MiB, and each IP gets 30 POST requests per minute (`SANGYAN_RATE_LIMIT`). Set `SANGYAN_ENV=production` behind an HTTPS proxy to reject plain HTTP and hide the API docs. Add authentication before public exposure.
 
 The mobile result screen includes feedback buttons and discloses that extracted text is submitted. Reports are stored in `phishing_detector/.cache/feedback.sqlite3` (override with `FEEDBACK_DB`). Submitted text can contain sensitive information; configure access and retention before collecting real user data. Analysis images/text are not automatically persisted. Report IDs reference client-provided analysis UUIDs and are not authenticated provenance. Review reports, correct labels, then manually promote confirmed indicators into configuration; reports never automatically poison the blocklist.
 
 ## Train the text baseline
 
 ```powershell
-python -m pip install -r requirements-ml.txt
 python -m phishing_detector.text_ml labeled.csv text-model.joblib
 $env:TEXT_MODEL_PATH = "text-model.joblib"
 ```
@@ -74,11 +87,20 @@ CSV columns: `text,label`, labels `legitimate` or `phishing`. Source files are m
 ## Validation and remaining work
 
 ```powershell
-python -m pip install -r requirements-dev.txt -r requirements-ml.txt
+python -m pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-`tests/test_backend_integration.py` covers the mobile API end to end and every failure mode (model missing or failing, unreadable input, invalid engine output, exceptions, bad images, timeout and recovery). `anweshabackend/validation/run_validation.py` sends a small labelled set through a running server with real OCR. Other tests cover confidence, extraction boundaries, secret negation, blocklist overrides, brand lookalikes, blank input, one-pass orchestration, API contracts, feedback persistence and model training/reload. OCR/model boundaries are mocked where appropriate; tests do not establish real-world detection accuracy.
+With a server running on a spare port (for example 8001, started with `SANGYAN_RATE_LIMIT=10000`), from `src\mobile server`:
+
+```powershell
+python validation\e2e_api.py http://127.0.0.1:8001 --report validation\e2e_report.json   # live API + performance
+python validation\run_validation.py http://127.0.0.1:8001 --report validation\last_run.json
+python validation\engine_eval.py --split test                                             # held-out evaluation
+python security_check.py http://127.0.0.1:8002 --log <server log>                         # default rate limit
+```
+
+`tests/test_backend_integration.py` covers the mobile API end to end and every failure mode (model missing or failing, unreadable input, invalid engine output, exceptions, bad images, timeout and recovery). `mobile server/validation/run_validation.py` sends a small labelled set through a running server with real OCR. Other tests cover confidence, extraction boundaries, secret negation, blocklist overrides, brand lookalikes, blank input, one-pass orchestration, API contracts, feedback persistence and model training/reload. OCR/model boundaries are mocked where appropriate; tests do not establish real-world detection accuracy.
 
 RDAP and PhishTank/OpenPhish remain `not_implemented`. Google Safe Browsing v4 has an opt-in adapter with timeouts, bounded caching, evidence provenance and explicit failure statuses (see below). No suspect URL is visited by the current implementation. A production domain-age implementation needs public-suffix-aware registrable domains rather than a last-two-label approximation.
 
@@ -142,7 +164,7 @@ The report includes false-positive/false-negative IDs, unknown/abstained cases, 
 
 ### Optional reputation checks
 
-To enable Google Safe Browsing v4, set `SAFE_BROWSING_API_KEY` in the backend environment or ignored `src/.env`, and set `safe_browsing.enabled` to true in your selected detection JSON. `timeout_seconds` defaults to 2 and is limited to 0.1?10. Enabling this submits complete extracted URL strings (including paths/query values) to Google; it never visits the suspect page. The adapter follows the [official lookup API](https://developers.google.com/safe-browsing/v4/lookup-api). Provider failures are `unavailable`, missing credentials are `not_configured`, and disabled checks are `disabled`; no match is not a safety guarantee. Positive cache entries respect the returned duration up to five minutes, negative entries last 30 seconds, and the cache is capped at 1,024 entries. Recovered/low-confidence OCR matches cannot trigger a certain hard override. Provider tests use stubs; verify a real API key/response separately before relying on it.
+To enable Google Safe Browsing v4, set `SAFE_BROWSING_API_KEY` in the backend environment or ignored `src/.env`, and set `safe_browsing.enabled` to true in your selected detection JSON. `timeout_seconds` defaults to 2 and is limited to 0.1-10. Enabling this submits complete extracted URL strings (including paths/query values) to Google; it never visits the suspect page. The adapter follows the [official lookup API](https://developers.google.com/safe-browsing/v4/lookup-api). Provider failures are `unavailable`, missing credentials are `not_configured`, and disabled checks are `disabled`; no match is not a safety guarantee. Positive cache entries respect the returned duration up to five minutes, negative entries last 30 seconds, and the cache is capped at 1,024 entries. Recovered/low-confidence OCR matches cannot trigger a certain hard override. Provider tests use stubs; verify a real API key/response separately before relying on it.
 
 ### Train only after data review
 
@@ -231,4 +253,4 @@ python -m phishing_detector.train_all --models text
 
 `training.json` starts image training at 10 epochs and batch size 8. Adjust these before a run; reduce batch size if GPU memory is insufficient. Existing outputs are protected: choose a new `output` directory for a rerun, or select only models whose artifacts have not been created. Failure leaves completed checkpoints in place. The image trainer may download ResNet backbone weights on first use. Image training independently repeats its dataset audit.
 
-Artifacts are `models/training-v1/image.pth`, `url.joblib`, and `text.joblib`, each with `.metrics.json`. After a successful selected sequence, `activation.env` contains paths for `IMAGE_MODEL_PATH`, `URL_MODEL_PATH`, and/or `TEXT_MODEL_PATH`. Copy reviewed values into the API environment and restart; regenerate paths if artifacts move to another computer. The URL model contributes an OCR-confidence-weighted signal through `url_ml` (default fusion weight 0.8). Baselines and fusion remain uncalibrated until held-out evaluation. No training was performed while implementing the launcher.
+Artifacts are `models/training-v1/image.pth`, `url.joblib`, and `text.joblib`, each with `.metrics.json`. The API finds them in `models/training-v1` beside `src/` without any configuration; `activation.env` paths are only needed for models stored elsewhere. After retraining, run `python -m phishing_detector.thresholds choose` (validation split) so the new files get validated thresholds, then `python -m phishing_detector.thresholds evaluate` for the test report, and restart the API. Fusion weights (text 0.8, URL 0.8, image 0.55) and the official-domain allowlist were chosen on validation data; evidence and held-out results are in [docs/model-integration.md](docs/model-integration.md).

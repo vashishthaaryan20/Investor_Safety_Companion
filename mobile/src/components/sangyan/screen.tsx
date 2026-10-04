@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Colors, Layout, Space } from "@/constants/design";
+import { Colors, Gradients, Layout, Space } from "@/constants/design";
 
 import { AppText } from "./ui";
 
@@ -46,10 +46,10 @@ export function Screen({
     : insets.bottom + Space.xxl + (tabs ? Layout.tabBarInset : 0);
 
   const body = (
-    <View style={styles.root}>
+    <View style={[styles.root, styles.glow]}>
       <ScrollView
         ref={scrollRef}
-        style={styles.root}
+        style={styles.flex}
         contentContainerStyle={[
           styles.content,
           { paddingTop: safeTop ? insets.top + Space.lg : Space.sm, paddingBottom: bottomPad },
@@ -131,6 +131,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  flex: {
+    flex: 1,
+  },
+  glow: {
+    experimental_backgroundImage: Gradients.screen,
+  },
   content: {
     paddingHorizontal: Layout.screenPadding,
   },
@@ -143,7 +149,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.backgroundTop,
   },
   footer: {
     paddingHorizontal: Layout.screenPadding,

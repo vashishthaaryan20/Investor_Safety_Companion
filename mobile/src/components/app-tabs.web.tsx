@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   },
   brandText: {
     ...Typography.label,
-    color: Colors.primary,
+    color: Colors.accent,
     marginRight: 'auto',
   },
   tabButton: {
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     color: Colors.muted,
   },
   tabLabelActive: {
-    color: Colors.primary,
+    color: Colors.accent,
   },
   pressed: {
     opacity: 0.7,

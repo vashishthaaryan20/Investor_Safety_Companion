@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { InlineAlert, ProgressList } from "@/components/sangyan/feedback";
 import { contentWidth } from "@/components/sangyan/screen";
 import { AppButton, AppText } from "@/components/sangyan/ui";
-import { Colors, Layout, Space } from "@/constants/design";
+import { Colors, Gradients, Layout, Space } from "@/constants/design";
 import { isInconclusive } from "@/constants/risk";
 import {
   sendScreenshotForAnalysis,
@@ -193,6 +193,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
+    experimental_backgroundImage: Gradients.screen,
   },
   content: {
     ...contentWidth,
@@ -216,13 +217,16 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: Colors.secondary,
+    backgroundColor: Colors.accent,
   },
   shield: {
     width: 112,
     height: 112,
     borderRadius: 56,
     backgroundColor: Colors.primary,
+    experimental_backgroundImage: Gradients.hero,
+    borderWidth: 2,
+    borderColor: Colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },

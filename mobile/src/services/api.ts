@@ -46,6 +46,18 @@ export interface AnalysisRisk {
   confidence_basis?: "ocr_read_quality" | "typed_text";
   engine_level?: string;
   engine_score?: number;
+  /** Contract 1.1: "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN". */
+  category?: string;
+}
+
+/** One detection step. Trained models also report their validated threshold tier. */
+export interface AnalysisDetector {
+  name: string;
+  status: string;
+  score: number;
+  /** Raw model output (0-1). Not calibrated, so it is never shown as a probability. */
+  model_score?: number | null;
+  tier?: "medium" | "high" | null;
 }
 
 export interface AnalysisRecommendation {
@@ -78,6 +90,11 @@ export interface AnalysisResult {
   analysis_id?: string;
   analyzed_at?: string;
   status: string;
+  /** Contract 1.1: "COMPLETED" | "PARTIAL" (a trained model could not run) | "INCONCLUSIVE". */
+  analysis_status?: string;
+  /** Contract 1.1: "likely_scam" | "suspicious" | "no_strong_indicators" | "undetermined". */
+  classification?: string;
+  detectors?: AnalysisDetector[];
   extracted_text?: string;
   detected_urls: string[];
   analysis_mode?: string;

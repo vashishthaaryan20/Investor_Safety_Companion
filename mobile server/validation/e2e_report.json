@@ -1,0 +1,329 @@
+{
+  "health": {
+    "status": "ok",
+    "message": "SANGYAN Shield API is running",
+    "version": "1.4.0",
+    "contract_version": "1.1",
+    "engine": {
+      "ready": true,
+      "ocr": "ready",
+      "rules": "ready",
+      "image_classifier": {
+        "status": "loaded",
+        "reason": "Model loaded."
+      },
+      "text_classifier": {
+        "status": "loaded",
+        "reason": "Model loaded."
+      },
+      "url_classifier": {
+        "status": "loaded",
+        "reason": "Model loaded."
+      },
+      "external_reputation": "not_implemented",
+      "degraded": []
+    }
+  },
+  "cases": [
+    {
+      "case": "text: legitimate SIP notice",
+      "http": 200,
+      "ms": 56,
+      "level": "ELEVATED",
+      "category": "MEDIUM",
+      "score": 60,
+      "classification": "suspicious",
+      "analysis_status": "COMPLETED",
+      "read_confidence": 1.0,
+      "signals": [
+        "scam_language"
+      ],
+      "models": {
+        "text_ml": "high",
+        "url_ml": "ok"
+      },
+      "unavailable": [
+        "Reported-scam list",
+        "Domain age lookup",
+        "PhishTank / OpenPhish lookup"
+      ],
+      "server_ms": 35,
+      "pass": true
+    },
+    {
+      "case": "text: known phishing",
+      "http": 200,
+      "ms": 15,
+      "level": "HIGH_ATTENTION",
+      "category": "HIGH",
+      "score": 100,
+      "classification": "likely_scam",
+      "analysis_status": "COMPLETED",
+      "read_confidence": 1.0,
+      "signals": [
+        "sensitive_request",
+        "suspicious_url",
+        "risky_domain_ending",
+        "urgency",
+        "account_threat",
+        "brand_link_mismatch",
+        "scam_language",
+        "scam_link_pattern"
+      ],
+      "models": {
+        "text_ml": "high",
+        "url_ml": "high"
+      },
+      "unavailable": [
+        "Reported-scam list",
+        "Domain age lookup",
+        "PhishTank / OpenPhish lookup"
+      ],
+      "server_ms": 9,
+      "pass": true
+    },
+    {
+      "case": "text: suspicious URL",
+      "http": 200,
+      "ms": 10,
+      "level": "HIGH_ATTENTION",
+      "category": "HIGH",
+      "score": 100,
+      "classification": "likely_scam",
+      "analysis_status": "COMPLETED",
+      "read_confidence": 1.0,
+      "signals": [
+        "payment_request",
+        "suspicious_url",
+        "unusual_link",
+        "brand_imitation",
+        "prize_bait",
+        "brand_link_mismatch",
+        "scam_language",
+        "scam_link_pattern"
+      ],
+      "models": {
+        "text_ml": "high",
+        "url_ml": "high"
+      },
+      "unavailable": [
+        "Reported-scam list",
+        "Domain age lookup",
+        "PhishTank / OpenPhish lookup"
+      ],
+      "server_ms": 5,
+      "pass": true
+    },
+    {
+      "case": "text: official bank URL",
+      "http": 200,
+      "ms": 24,
+      "level": "ELEVATED",
+      "category": "MEDIUM",
+      "score": 60,
+      "classification": "suspicious",
+      "analysis_status": "COMPLETED",
+      "read_confidence": 1.0,
+      "signals": [
+        "suspicious_url",
+        "scam_language"
+      ],
+      "models": {
+        "text_ml": "high",
+        "url_ml": "ok"
+      },
+      "unavailable": [
+        "Reported-scam list",
+        "Domain age lookup",
+        "PhishTank / OpenPhish lookup"
+      ],
+      "server_ms": 7,
+      "pass": true
+    },
+    {
+      "case": "text: empty",
+      "http": 422,
+      "ms": 26,
+      "error": null,
+      "pass": true
+    },
+    {
+      "case": "text: too long",
+      "http": 422,
+      "ms": 13,
+      "error": null,
+      "pass": true
+    },
+    {
+      "case": "image: readable scam",
+      "http": 200,
+      "ms": 4744,
+      "upload_bytes": 85282,
+      "level": "HIGH_ATTENTION",
+      "category": "HIGH",
+      "score": 100,
+      "classification": "likely_scam",
+      "analysis_status": "COMPLETED",
+      "read_confidence": 0.72,
+      "signals": [
+        "guaranteed_returns",
+        "urgency",
+        "fake_regulator",
+        "payment_request",
+        "scam_language"
+      ],
+      "models": {
+        "text_ml": "high",
+        "url_ml": "ok",
+        "image_classifier": "ok"
+      },
+      "unavailable": [
+        "Reported-scam list",
+        "Domain age lookup",
+        "PhishTank / OpenPhish lookup"
+      ],
+      "server_ms": 4707,
+      "pass": true
+    },
+    {
+      "case": "image: readable legitimate",
+      "http": 200,
+      "ms": 4382,
+      "upload_bytes": 80269,
+      "level": "ELEVATED",
+      "category": "MEDIUM",
+      "score": 47,
+      "classification": "suspicious",
+      "analysis_status": "COMPLETED",
+      "read_confidence": 0.79,
+      "signals": [
+        "scam_language"
+      ],
+      "models": {
+        "text_ml": "high",
+        "url_ml": "ok",
+        "image_classifier": "ok"
+      },
+      "unavailable": [
+        "Reported-scam list",
+        "Domain age lookup",
+        "PhishTank / OpenPhish lookup"
+      ],
+      "server_ms": 4360,
+      "pass": true
+    },
+    {
+      "case": "image: poor readability",
+      "http": 200,
+      "ms": 3299,
+      "upload_bytes": 49417,
+      "level": "INCONCLUSIVE",
+      "category": "UNKNOWN",
+      "score": 0,
+      "classification": "undetermined",
+      "analysis_status": "INCONCLUSIVE",
+      "read_confidence": 0.0,
+      "signals": [],
+      "models": {
+        "text_ml": "ok",
+        "url_ml": "ok",
+        "image_classifier": "ok"
+      },
+      "unavailable": [
+        "Reported-scam list",
+        "Domain age lookup",
+        "PhishTank / OpenPhish lookup"
+      ],
+      "server_ms": 3272,
+      "pass": true
+    },
+    {
+      "case": "image: blank",
+      "http": 200,
+      "ms": 3539,
+      "upload_bytes": 41428,
+      "level": "INCONCLUSIVE",
+      "category": "UNKNOWN",
+      "score": 0,
+      "classification": "undetermined",
+      "analysis_status": "INCONCLUSIVE",
+      "read_confidence": 0.0,
+      "signals": [],
+      "models": {
+        "text_ml": "ok",
+        "url_ml": "ok",
+        "image_classifier": "ok"
+      },
+      "unavailable": [
+        "Reported-scam list",
+        "Domain age lookup",
+        "PhishTank / OpenPhish lookup"
+      ],
+      "server_ms": 3511,
+      "pass": true
+    },
+    {
+      "case": "invalid: not an image",
+      "http": 400,
+      "ms": 81,
+      "error": "image_unreadable",
+      "pass": true
+    },
+    {
+      "case": "invalid: unsupported GIF",
+      "http": 415,
+      "ms": 4,
+      "error": "image_unsupported",
+      "pass": true
+    },
+    {
+      "case": "invalid: over 10 MB",
+      "http": 0,
+      "ms": 7,
+      "upload_bytes": 18723734,
+      "error": {
+        "code": "connection_closed",
+        "message": "[WinError 10053] An established connection was aborted by the software in your host machine"
+      },
+      "pass": true
+    }
+  ],
+  "performance": {
+    "text_round_trip": {
+      "n": 20,
+      "median_ms": 11,
+      "p95_ms": 30,
+      "max_ms": 36
+    },
+    "text_server": {
+      "n": 20,
+      "median_ms": 6,
+      "p95_ms": 7,
+      "max_ms": 8
+    },
+    "screenshot_round_trip": {
+      "n": 5,
+      "median_ms": 4766,
+      "p95_ms": 4769,
+      "max_ms": 4989
+    },
+    "screenshot_ocr": {
+      "n": 5,
+      "median_ms": 4585,
+      "p95_ms": 4617,
+      "max_ms": 4848
+    },
+    "screenshot_server": {
+      "n": 5,
+      "median_ms": 4733,
+      "p95_ms": 4739,
+      "max_ms": 4958
+    },
+    "screenshot_upload_bytes_1080x2400": {
+      "jpeg_q60": 72656,
+      "jpeg_q80": 85282,
+      "jpeg_q95": 117080,
+      "png": 121954
+    }
+  }
+}

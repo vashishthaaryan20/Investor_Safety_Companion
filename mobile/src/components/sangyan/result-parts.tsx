@@ -30,7 +30,7 @@ export function RiskMeter({ score, color }: { score: { value: number; max: numbe
           key={index}
           style={[
             styles.meterSegment,
-            { backgroundColor: index < filled ? color : "rgba(15,23,42,0.1)" },
+            { backgroundColor: index < filled ? color : Colors.borderStrong },
           ]}
         />
       ))}
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   },
   evidenceText: {
     ...Typography.caption,
-    color: "#854D0E",
+    color: Colors.caution,
     fontWeight: "600",
   },
   sourceText: {
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   highlight: {
     backgroundColor: Colors.highlight,
     fontWeight: "700",
-    color: Colors.ink,
+    color: Colors.background,
   },
   checklist: {
     gap: Space.sm,

@@ -1,8 +1,0 @@
-torch
-torchvision
-easyocr
-opencv-python-headless
-numpy
-Pillow
-boto3
-python-dotenv

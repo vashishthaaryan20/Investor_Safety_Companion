@@ -37,7 +37,7 @@ const TEXT_TONES = {
   inverse: Colors.inverse,
   inverseMuted: Colors.inverseMuted,
   brand: Colors.secondary,
-  primary: Colors.primary,
+  primary: Colors.accent,
   success: Colors.success,
   caution: Colors.caution,
   warning: Colors.warning,
@@ -84,7 +84,7 @@ export function AppText({
 // ---------------------------------------------------------------------------
 
 /**
- * `inverse` / `inverseSecondary` are for dark (navy) surfaces.
+ * `inverse` / `inverseSecondary` are for `primary`-coloured panels.
  * `ghost` is kept as an alias of `tertiary`.
  */
 export type ButtonVariant =
@@ -118,12 +118,12 @@ const BUTTON_COLORS: Record<
   secondary: {
     bg: Colors.surface,
     pressed: Colors.surfaceMuted,
-    fg: Colors.primary,
+    fg: Colors.accent,
     border: Colors.borderStrong,
   },
   tertiary: { bg: "transparent", pressed: Colors.secondarySoft, fg: Colors.secondary },
-  danger: { bg: Colors.critical, pressed: "#991B1B", fg: Colors.inverse },
-  inverse: { bg: Colors.surface, pressed: "#E2E8F0", fg: Colors.primary },
+  danger: { bg: Colors.critical, pressed: "#EF4444", fg: Colors.background },
+  inverse: { bg: "#FFFFFF", pressed: "#E2E8F0", fg: Colors.primary },
   inverseSecondary: {
     bg: "transparent",
     pressed: "rgba(255,255,255,0.12)",
@@ -198,7 +198,7 @@ export function IconButton({
   icon,
   label,
   onPress,
-  color = Colors.primary,
+  color = Colors.accent,
   size = 22,
   filled,
   disabled,
@@ -307,7 +307,7 @@ export function SectionHeader({ title, subtitle, icon, action, style }: SectionH
   return (
     <View style={[styles.sectionHeader, style]}>
       <View style={styles.sectionTitleRow}>
-        {icon && <Ionicons name={icon} size={20} color={Colors.primary} />}
+        {icon && <Ionicons name={icon} size={20} color={Colors.accent} />}
         <AppText variant="heading" style={styles.sectionTitle}>
           {title}
         </AppText>
@@ -566,6 +566,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
     padding: Layout.cardPadding,
   },
   cardOutlined: {

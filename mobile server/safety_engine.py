@@ -62,8 +62,6 @@ SEBI_REG_NUMBER = re.compile(r"\bIN[AHZP]\d{9}\b")
 
 # Below this much readable text, a "no warning signs" verdict would be misleading.
 MIN_READABLE_CHARS = 15
-# The engine weights the visual model by 0.55; from about this phishing % it adds 20+ points.
-VISUAL_NOTE_MIN = 36
 
 VERIFICATION_STEPS = [
     "Do not send money, share OTPs, or click unknown payment links based on this message.",
@@ -223,6 +221,10 @@ DETECTOR_FINDINGS: dict[str, tuple[str, str, str, str, str]] = {
         "scam_language", "content", "medium", "Wording matches known scams",
         "Our text check found wording similar to known scam messages.",
     ),
+    "URL classifier signal": (
+        "scam_link_pattern", "source", "medium", "Link looks like known scam links",
+        "Our link check found this web address looks similar to known phishing links.",
+    ),
     "Urgency": (
         "urgency", "behavior", "medium", "Pushes you to act fast",
         "It creates pressure with deadlines or warnings. "
@@ -248,6 +250,7 @@ DETECTOR_CATEGORY = {
     "blocklist": "source",
     "text_rules": "behavior",
     "text_ml": "content",
+    "url_ml": "source",
 }
 VISUAL_FINDING = "Visual classifier signal"
 
@@ -303,6 +306,7 @@ def analyze_content(
     extra_signals: list[dict] | None = None,
     engine_risk: dict[str, Any] | None = None,
     typed: bool = False,
+    visual_tier: str | None = None,
 ) -> dict[str, Any]:
     """Investor-safety rules on top of the detection engine's verdict.
 
@@ -473,11 +477,11 @@ def analyze_content(
             urls[:3],
         )
 
-    if phishing_label in {"phishing", "legitimate"} and phishing_confidence is not None:
+    if visual_tier and phishing_label in {"phishing", "legitimate"} and phishing_confidence is not None:
         phishing_percent = (
             phishing_confidence if phishing_label == "phishing" else 100 - phishing_confidence
         )
-        if phishing_label == "phishing" and phishing_confidence >= 55:
+        if visual_tier == "high":
             _add(
                 signals,
                 "phishing_visual",
@@ -485,11 +489,11 @@ def analyze_content(
                 "high",
                 "Looks like a known fake page",
                 "Our image check found this screenshot looks similar to known phishing pages.",
-                [f"{phishing_confidence:.0f}% match with phishing layouts"],
+                [f"{phishing_percent:.0f}% match with phishing layouts"],
                 origin="engine",
             )
-        elif phishing_percent >= VISUAL_NOTE_MIN:
-            # Enough to move the engine score into "be careful", so it must be visible.
+        else:
+            # The medium tier moves the engine score into "be careful", so it must be visible.
             _add(
                 signals,
                 "phishing_visual_weak",

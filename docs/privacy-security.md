@@ -46,7 +46,7 @@ Changing the server address means editing `api-config.json` and running `npx exp
 
 ## Server-side validation
 
-`anweshabackend/security.py`:
+`mobile server/security.py`:
 
 - Images: 10 MB, 25 million pixels and at least 16×16 px; real JPEG/PNG/WebP content (the file is inspected, the name and declared type are not trusted); decompression bombs, truncated and corrupted files are rejected.
 - Requests: bodies over 15 MB rejected from `Content-Length` before reading; text 1 to 20,000 characters; feedback IDs must be UUIDs; missing fields and malformed JSON return a generic 422 that names the field but does not echo the input.
@@ -70,14 +70,14 @@ Screen capture:
 Start a test server in one terminal (use another port if 8000 is in use):
 
 ```powershell
-cd anweshabackend
+cd "mobile server"
 python -m uvicorn server:app --host 127.0.0.1 --port 8001 *> security-test.log
 ```
 
 Then in a second terminal:
 
 ```powershell
-cd anweshabackend
+cd "mobile server"
 python security_check.py http://127.0.0.1:8001 --log security-test.log
 ```
 

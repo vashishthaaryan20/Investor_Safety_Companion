@@ -1,4 +1,5 @@
 import type {
+  AnalysisDetector,
   AnalysisMetadata,
   AnalysisRecommendation,
   AnalysisResult,
@@ -82,5 +83,9 @@ export function parseAnalysisResult(data: unknown): AnalysisResult {
     })),
     recommendation,
     metadata: isRecord(data.metadata) ? (data.metadata as AnalysisMetadata) : undefined,
+    detectors: Array.isArray(data.detectors) ? data.detectors.filter(isDetector) : undefined,
   };
 }
+
+const isDetector = (value: unknown): value is AnalysisDetector =>
+  isRecord(value) && typeof value.name === "string" && typeof value.status === "string";

@@ -1,14 +1,14 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
-import { Radius, Space, Typography } from "@/constants/design";
+import { Colors, Radius, Space, Typography } from "@/constants/design";
 import type { RiskCopy } from "@/constants/risk";
 
 interface RiskBadgeProps {
   risk: RiskCopy;
   score?: { value: number; max: number };
   size?: "sm" | "md";
-  /** On a coloured hero, show a white pill instead of a tinted one. */
+  /** On a coloured hero, show a dark glass pill instead of a tinted one. */
   inverse?: boolean;
   style?: StyleProp<ViewStyle>;
 }
@@ -22,7 +22,7 @@ export function RiskBadge({ risk, score, size = "md", inverse, style }: RiskBadg
       style={[
         styles.badge,
         small && styles.badgeSmall,
-        { backgroundColor: inverse ? "#FFFFFF" : risk.soft, borderColor: inverse ? "#FFFFFF" : risk.border },
+        { backgroundColor: inverse ? Colors.glass : risk.soft, borderColor: risk.border },
         style,
       ]}
       accessible

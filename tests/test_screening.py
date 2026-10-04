@@ -225,7 +225,16 @@ def test_ml_training_and_reload(tmp_path):
         assert report["train_count"] + report["val_count"] + report["test_count"] == 40
         model.fit.assert_called_once()
         assert len(model.fit.call_args.args[0]) == report["train_count"]
-        assert detect("send OTP", str(artifact)).status == "ok"
+        # A new model is not used until thresholds are validated for that exact file.
+        unvalidated = detect("send OTP", str(artifact))
+        assert unvalidated.status == "unavailable" and "thresholds" in unvalidated.detail
+        with (
+            patch("phishing_detector.artifacts.thresholds_for", return_value=(0.5, 0.8)),
+            patch("phishing_detector.text_ml.suspicious_phrases", return_value=["send otp"]),
+        ):
+            validated = detect("send OTP", str(artifact))
+        assert validated.status == "ok" and validated.tier == "high"
+        assert validated.findings[0].evidence == '"send otp"'
     assert detect("text", str(tmp_path / "missing")).status == "unavailable"
 
 

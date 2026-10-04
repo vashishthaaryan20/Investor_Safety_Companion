@@ -1,39 +1,88 @@
-"""Optional TF-IDF/logistic baseline. Load only trusted local model artifacts."""
+"""TF-IDF/logistic text classifier. Load only trusted local model artifacts."""
 
 import logging
 from functools import lru_cache
+from pathlib import Path
 
+from . import artifacts
 from .detectors import Detection, Finding
 
+TIER_TEXT = {
+    "medium": "The trained text model found wording similar to known phishing messages.",
+    "high": "The trained text model found wording strongly similar to known phishing messages.",
+}
 
-@lru_cache(maxsize=2)
+
+@lru_cache(maxsize=4)
 def load_model(path):
     import joblib
 
     return joblib.load(path)
 
 
-def detect(text, path=None):
+@lru_cache(maxsize=4)
+def _vocabulary(path):
+    model = load_model(path)
+    vectorizer, classifier = model.steps[0][1], model.steps[-1][1]
+    sign = 1 if list(classifier.classes_).index("phishing") == 1 else -1
+    return vectorizer, vectorizer.get_feature_names_out(), sign * classifier.coef_[0]
+
+
+def suspicious_phrases(path, text, limit=3):
+    """Present n-grams that pushed the score towards phishing, strongest first."""
+    vectorizer, names, weights = _vocabulary(path)
+    row = vectorizer.transform([text])
+    pushes = sorted(
+        ((row.data[i] * weights[j], names[j]) for i, j in enumerate(row.indices)),
+        reverse=True,
+    )
+    return [name for push, name in pushes[:limit] if push > 0]
+
+
+def resolve(path):
+    """(model path, (medium, high)) or a Detection explaining why the model cannot run."""
     if not path:
         return Detection("text_ml", "not_configured")
+    path = Path(path)
+    if not path.is_file():
+        return Detection("text_ml", "unavailable", detail="Text model file not found")
+    thresholds = artifacts.thresholds_for("text", path)
+    if thresholds is None:
+        return Detection(
+            "text_ml",
+            "unavailable",
+            detail="No validated thresholds for this text model file",
+        )
+    return str(path), thresholds
+
+
+def detect(text, path=None):
+    resolved = resolve(path)
+    if isinstance(resolved, Detection):
+        return resolved
+    path, thresholds = resolved
+    if not isinstance(text, str) or not text.strip():
+        return Detection("text_ml", "ok", detail="No text to classify")
     try:
         model = load_model(path)
         index = list(model.classes_).index("phishing")
-        score = float(model.predict_proba([text])[0][index])
-        return Detection(
-            "text_ml",
-            findings=[
+        score = float(model.predict_proba([text.strip()])[0][index])
+        level = artifacts.tier(score, thresholds)
+        detection = Detection("text_ml", model_score=round(score, 4), tier=level)
+        if level:
+            phrases = suspicious_phrases(path, text.strip())
+            detection.findings.append(
                 Finding(
                     "text_ml",
-                    score,
+                    artifacts.TIER_SCORES[level],
                     "Text classifier signal",
-                    "The trained text model found language associated with phishing.",
-                    "TF-IDF + logistic regression",
+                    TIER_TEXT[level],
+                    ", ".join(f'"{p}"' for p in phrases) or "Overall wording",
                 )
-            ],
-        )
+            )
+        return detection
     except Exception:
-        logging.getLogger(__name__).exception("Optional text classifier unavailable")
+        logging.getLogger(__name__).exception("Text classifier failed")
         return Detection(
             "text_ml", "unavailable", detail="Model could not be loaded or evaluated"
         )
@@ -129,6 +178,7 @@ def train(csv_path, output, overwrite=False, kind="text"):
         json.dumps(report, indent=2), encoding="utf-8"
     )
     load_model.cache_clear()
+    _vocabulary.cache_clear()
     stage(
         f"{kind}-training",
         8,

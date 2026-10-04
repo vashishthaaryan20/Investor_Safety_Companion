@@ -9,10 +9,10 @@ export default function AppTabs() {
     <NativeTabs
       backgroundColor={Colors.surface}
       indicatorColor={Colors.secondarySoft}
-      iconColor={{ default: Colors.muted, selected: Colors.secondary }}
+      iconColor={{ default: Colors.muted, selected: Colors.accent }}
       labelStyle={{
         default: { color: Colors.muted, fontSize: 12 },
-        selected: { color: Colors.primary, fontSize: 12, fontWeight: '700' },
+        selected: { color: Colors.accent, fontSize: 12, fontWeight: '700' },
       }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>

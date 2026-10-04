@@ -72,9 +72,26 @@ const UNCLEAR_COPY = riskCopy(
   "Try a clearer screenshot or paste the message."
 );
 
+/** Same words as LOW_ATTENTION, without the reassuring green check: some checks did not run. */
+const INCOMPLETE_LOW_COPY = riskCopy(
+  "neutral",
+  "shield-outline",
+  RISK_COPY.LOW_ATTENTION.label,
+  RISK_COPY.LOW_ATTENTION.headline,
+  RISK_COPY.LOW_ATTENTION.advice
+);
+
 export function getRiskCopy(level: string): RiskCopy {
   if (level === "INCONCLUSIVE") return UNCLEAR_COPY;
   return RISK_COPY[level] ?? RISK_COPY.MODERATE;
+}
+
+/** The level's copy, toned down when a low result is incomplete. */
+export function getLevelCopy(result: AnalysisResult): RiskCopy {
+  if (result.risk.level === "LOW_ATTENTION" && result.analysis_status === "PARTIAL") {
+    return INCOMPLETE_LOW_COPY;
+  }
+  return getRiskCopy(result.risk.level);
 }
 
 /** The backend's score and the scale it used (results saved before contract 1.0 are out of 10). */
@@ -124,7 +141,7 @@ export function getHeadline(result: AnalysisResult): string {
 }
 
 export function getResultCopy(result: AnalysisResult): RiskCopy {
-  return isInconclusive(result) ? UNCLEAR_COPY : getRiskCopy(result.risk.level);
+  return isInconclusive(result) ? UNCLEAR_COPY : getLevelCopy(result);
 }
 
 export interface SeverityCopy {
@@ -155,6 +172,54 @@ const CATEGORY_ICONS: Record<string, IconName> = {
 
 export function getCategoryIcon(category: string): IconName {
   return CATEGORY_ICONS[category] ?? "alert-circle-outline";
+}
+
+const CLASSIFICATION_LABELS: Record<string, string> = {
+  likely_scam: "Likely scam",
+  suspicious: "Suspicious",
+  no_strong_indicators: "No strong scam signs",
+  undetermined: "Not determined",
+};
+
+const ANALYSIS_STATUS_LABELS: Record<string, string> = {
+  COMPLETED: "All checks ran",
+  PARTIAL: "Some checks could not run",
+  INCONCLUSIVE: "Could not be checked",
+};
+
+/** "Suspicious · All checks ran"; undefined for results saved before contract 1.1. */
+export function getClassificationLine(result: AnalysisResult): string | undefined {
+  const classification = CLASSIFICATION_LABELS[result.classification ?? ""];
+  const status = ANALYSIS_STATUS_LABELS[result.analysis_status ?? ""];
+  return [classification, status].filter(Boolean).join(" · ") || undefined;
+}
+
+const MODEL_LABELS: Record<string, string> = {
+  text_ml: "Message text model",
+  url_ml: "Link model",
+  image_classifier: "Screenshot image model",
+};
+
+/** What each trained model concluded, in words. Raw model scores are not calibrated, so only tiers are shown. */
+export function getModelChecks(result: AnalysisResult): { label: string; value: string }[] {
+  return (result.detectors ?? [])
+    .filter((detector) => detector.name in MODEL_LABELS)
+    .map((detector) => {
+      let value: string;
+      if (detector.status === "ok") {
+        value =
+          detector.tier === "high"
+            ? "Strong match with known scams"
+            : detector.tier === "medium"
+              ? "Some match with known scams"
+              : typeof detector.model_score === "number"
+                ? "No match with known scams"
+                : "Nothing to check";
+      } else {
+        value = detector.status === "disabled" ? "Not used" : "Not available";
+      }
+      return { label: MODEL_LABELS[detector.name], value };
+    });
 }
 
 export function isInconclusive(result: AnalysisResult): boolean {

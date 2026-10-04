@@ -1,0 +1,221 @@
+{
+  "text": {
+    "model_file": "text.joblib",
+    "model_sha256": "833bcb15f3dd3f0759e0422bed1338afa3d0649660b08a2962330a91ffcdb48c",
+    "medium": 0.485424,
+    "high": 0.565684,
+    "chosen_on": "validation split (1758 rows)",
+    "rule": "medium = best validation F1; high = lowest threshold with validation precision >= 0.98",
+    "validation": {
+      "at_medium": {
+        "label_order": [
+          "legitimate",
+          "phishing"
+        ],
+        "confusion_matrix": [
+          [
+            1085,
+            15
+          ],
+          [
+            28,
+            630
+          ]
+        ],
+        "accuracy": 0.9755403868031854,
+        "phishing_precision": 0.9767441860465116,
+        "phishing_recall": 0.9574468085106383,
+        "phishing_f1": 0.9669992325402915,
+        "false_positives": 15,
+        "false_negatives": 28,
+        "false_positive_rate": 0.013636363636363636,
+        "false_negative_rate": 0.0425531914893617
+      },
+      "at_high": {
+        "label_order": [
+          "legitimate",
+          "phishing"
+        ],
+        "confusion_matrix": [
+          [
+            1088,
+            12
+          ],
+          [
+            38,
+            620
+          ]
+        ],
+        "accuracy": 0.9715585893060296,
+        "phishing_precision": 0.9810126582278481,
+        "phishing_recall": 0.9422492401215805,
+        "phishing_f1": 0.9612403100775193,
+        "false_positives": 12,
+        "false_negatives": 38,
+        "false_positive_rate": 0.01090909090909091,
+        "false_negative_rate": 0.057750759878419454
+      }
+    },
+    "dataset": {
+      "recorded_sha256": "aa041cc2a07ce49e1bd1d2de135b77e4b264317161202e696381565fd06b6f3a",
+      "local_sha256": "aa041cc2a07ce49e1bd1d2de135b77e4b264317161202e696381565fd06b6f3a",
+      "matches_training_data": true
+    },
+    "scores_are_calibrated": false
+  },
+  "url": {
+    "model_file": "url.joblib",
+    "model_sha256": "8c680a94afbab5a43b2206421bd4b09e0f96565ca8544c97ca3ec88d03c64eaf",
+    "medium": 0.44338,
+    "high": 0.703094,
+    "chosen_on": "validation split (5398 rows)",
+    "rule": "medium = best validation F1; high = lowest threshold with validation precision >= 0.98",
+    "validation": {
+      "at_medium": {
+        "label_order": [
+          "legitimate",
+          "phishing"
+        ],
+        "confusion_matrix": [
+          [
+            2491,
+            207
+          ],
+          [
+            256,
+            2444
+          ]
+        ],
+        "accuracy": 0.9142274916635791,
+        "phishing_precision": 0.9219162580158431,
+        "phishing_recall": 0.9051851851851852,
+        "phishing_f1": 0.913474116987479,
+        "false_positives": 207,
+        "false_negatives": 256,
+        "false_positive_rate": 0.07672349888806523,
+        "false_negative_rate": 0.09481481481481481
+      },
+      "at_high": {
+        "label_order": [
+          "legitimate",
+          "phishing"
+        ],
+        "confusion_matrix": [
+          [
+            2656,
+            42
+          ],
+          [
+            627,
+            2073
+          ]
+        ],
+        "accuracy": 0.8760652093367914,
+        "phishing_precision": 0.9801418439716312,
+        "phishing_recall": 0.7677777777777778,
+        "phishing_f1": 0.8610591900311527,
+        "false_positives": 42,
+        "false_negatives": 627,
+        "false_positive_rate": 0.015567086730911787,
+        "false_negative_rate": 0.23222222222222222
+      }
+    },
+    "dataset": {
+      "recorded_sha256": "1b82abf706133d8eb8eab6a83e896aec1c055a612eb6605806119cbbc1556845",
+      "local_sha256": "1b82abf706133d8eb8eab6a83e896aec1c055a612eb6605806119cbbc1556845",
+      "matches_training_data": true
+    },
+    "scores_are_calibrated": false
+  },
+  "image": {
+    "model_file": "image.pth",
+    "model_sha256": "d1c289681d75cd765da67bbc334ad1f65587e21b2033f0e40e1db14b4fdea91d",
+    "medium": 0.586118,
+    "high": 0.999799,
+    "chosen_on": "validation split (1662 rows)",
+    "rule": "medium = best validation F1; high = lowest threshold with validation precision >= 0.98",
+    "validation": {
+      "at_medium": {
+        "label_order": [
+          "legitimate",
+          "phishing"
+        ],
+        "confusion_matrix": [
+          [
+            1338,
+            52
+          ],
+          [
+            86,
+            186
+          ]
+        ],
+        "accuracy": 0.9169675090252708,
+        "phishing_precision": 0.7815126050420168,
+        "phishing_recall": 0.6838235294117647,
+        "phishing_f1": 0.7294117647058823,
+        "false_positives": 52,
+        "false_negatives": 86,
+        "false_positive_rate": 0.03741007194244604,
+        "false_negative_rate": 0.3161764705882353
+      },
+      "at_high": {
+        "label_order": [
+          "legitimate",
+          "phishing"
+        ],
+        "confusion_matrix": [
+          [
+            1390,
+            0
+          ],
+          [
+            252,
+            20
+          ]
+        ],
+        "accuracy": 0.8483754512635379,
+        "phishing_precision": 1.0,
+        "phishing_recall": 0.07352941176470588,
+        "phishing_f1": 0.13698630136986303,
+        "false_positives": 0,
+        "false_negatives": 252,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 0.9264705882352942
+      }
+    },
+    "dataset": {
+      "recorded_counts": {
+        "train": {
+          "legitimate": 9719,
+          "phishing": 1920
+        },
+        "val": {
+          "legitimate": 1390,
+          "phishing": 272
+        },
+        "test": {
+          "legitimate": 1392,
+          "phishing": 269
+        }
+      },
+      "local_counts": {
+        "train": {
+          "legitimate": 9719,
+          "phishing": 1920
+        },
+        "val": {
+          "legitimate": 1390,
+          "phishing": 272
+        },
+        "test": {
+          "legitimate": 1392,
+          "phishing": 269
+        }
+      },
+      "matches_training_data": true,
+      "note": "The image run records split counts, not a content hash."
+    },
+    "scores_are_calibrated": false
+  }
+}

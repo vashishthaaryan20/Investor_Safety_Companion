@@ -16,7 +16,7 @@ import {
   SectionHeader,
   TextLink,
 } from "@/components/sangyan/ui";
-import { Colors, Layout, Radius, Space } from "@/constants/design";
+import { Colors, Gradients, Layout, Radius, Space } from "@/constants/design";
 import { isInconclusive } from "@/constants/risk";
 import { requestAddScreenTile } from "@/services/screen-context";
 import { useScan, type ScanMode, type ScanRecord } from "@/state/scan-store";
@@ -81,7 +81,7 @@ function OtherAppsCard() {
   return (
     <Card style={styles.cardGap}>
       <View style={styles.rowTop}>
-        <IconBadge icon="layers" color={Colors.primary} background={Colors.infoSoft} size={44} />
+        <IconBadge icon="layers" color={Colors.accent} background={Colors.infoSoft} size={44} />
         <View style={styles.flex}>
           <AppText variant="subheading" tone="ink" accessibilityRole="header">
             Check while using other apps
@@ -331,12 +331,16 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: Radius.md + 2,
     backgroundColor: Colors.primary,
+    experimental_backgroundImage: Gradients.hero,
     alignItems: "center",
     justifyContent: "center",
   },
   hero: {
     backgroundColor: Colors.primary,
+    experimental_backgroundImage: Gradients.hero,
     borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
     padding: Space.xl,
     gap: Space.md,
   },

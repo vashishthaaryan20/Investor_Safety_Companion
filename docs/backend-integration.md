@@ -1,6 +1,6 @@
 # Backend integration (Milestone 8)
 
-How the mobile app reaches the detection engine (`phishing_detector`), what each side promises, how failures are reported, and what was tested. API version 1.4.0, contract version 1.0.
+How the mobile app reaches the detection engine (`phishing_detector`), what each side promises, how failures are reported, and what was tested. API version 1.4.0, contract version 1.1 (1.1 added the trained models; see [Contract 1.1](#contract-11-trained-models) and [model-integration.md](model-integration.md)).
 
 ## Execution flow
 
@@ -32,13 +32,13 @@ OCR is unchanged: the same `phishing_detector/ocr.py` pass feeds the engine, whi
 
 | File | Change |
 | --- | --- |
-| `anweshabackend/contract.py` (new) | Pydantic models for the engine output and the mobile response |
-| `anweshabackend/engine_adapter.py` (new) | OCR, classifier, engine, validation, merge, error types, model status |
-| `anweshabackend/server.py` | Routes call the adapter; timeout, busy and error envelope; health reports engine status; warm-up |
-| `anweshabackend/safety_engine.py` | Unified 0-100 score, level bands, recommendation, origin on signals, OCR line-wrap handling |
+| `mobile server/contract.py` (new) | Pydantic models for the engine output and the mobile response |
+| `mobile server/engine_adapter.py` (new) | OCR, classifier, engine, validation, merge, error types, model status |
+| `mobile server/server.py` | Routes call the adapter; timeout, busy and error envelope; health reports engine status; warm-up |
+| `mobile server/safety_engine.py` | Unified 0-100 score, level bands, recommendation, origin on signals, OCR line-wrap handling |
 | `phishing_detector/service.py` | `classify_image` split out of `analyze_image` (behaviour unchanged) |
 | `tests/test_backend_integration.py` (new) | Failure modes and integration tests |
-| `anweshabackend/validation/` (new) | Labelled cases, runner, last report |
+| `mobile server/validation/` (new) | Labelled cases, runner, last report |
 | `mobile/src/services/analysis-contract.ts` (new) | Runtime validation of responses |
 | `mobile/src/services/api.ts` | New optional fields, 504 handling, validated parsing |
 | `mobile/src/constants/risk.ts` | Score scale, reading-confidence copy, inconclusive handling |
@@ -67,7 +67,7 @@ OCR is unchanged: the same `phishing_detector/ocr.py` pass feeds the engine, whi
 | `detectors` | list of `{name, status, findings, detail, score}`; status is one of `ok`, `disabled`, `unavailable`, `not_configured`, `not_implemented` |
 | `detectors[].findings` | `{category, score 0-1, title, description, evidence, hard_override}` |
 | `risk` | `{level: dangerous / suspicious / low / unknown, score 0-100}` |
-| `score_version` | string (currently `rules-v1-uncalibrated`) |
+| `score_version` | string (currently `rules-v1+models-training-v1`) |
 | `label`, `confidence` | image classifier label (`legitimate` / `phishing`) and 0-100, or null |
 
 **Uncertainty.** The engine says `unknown` when it cannot judge; the adapter maps that (or fewer than 15 readable characters with no signals) to `INCONCLUSIVE`. Scores are uncalibrated and are not probabilities.
@@ -133,10 +133,10 @@ History stores the redacted result as returned (`analysis_id`, `analyzed_at`, ri
 
 ## Validation set
 
-`anweshabackend/validation/cases.json` has 16 labelled cases in 7 groups (legitimate, guaranteed returns, urgency, sensitive information, suspicious URL, mixed, unreadable). Expectations were written before running the engine. Each case is sent as pasted text and as a rendered screenshot through real OCR (unreadable cases as image only): 29 requests.
+`mobile server/validation/cases.json` has 16 labelled cases in 7 groups (legitimate, guaranteed returns, urgency, sensitive information, suspicious URL, mixed, unreadable). Expectations were written before running the engine. Each case is sent as pasted text and as a rendered screenshot through real OCR (unreadable cases as image only): 29 requests.
 
 ```powershell
-cd anweshabackend
+cd "mobile server"
 $env:SANGYAN_RATE_LIMIT = "1000"
 python -m uvicorn server:app --port 8001      # separate terminal
 python validation/run_validation.py http://127.0.0.1:8001 --report validation/last_run.json
@@ -144,9 +144,9 @@ python validation/run_validation.py http://127.0.0.1:8001 --report validation/la
 
 **Results.** First run: 28/29. The screenshot of `mixed-withdrawal` came back `MODERATE` (expected at least `ELEVATED`) because OCR split "withdrawal / tax" across two lines and the rules did not match across a line break. That was a general bug, fixed in `safety_engine._matches` (also for words hyphenated at a line end) with a regression test that uses different wording. After the fix: 29/29. Because the fix was found with these cases, the 29/29 is not an independent result.
 
-The set is a smoke test of the integration, not an accuracy measurement. All runs used the rules and text path only; the image classifier was unavailable.
+The set is a smoke test of the integration, not an accuracy measurement. Those runs used the rules and text path only. With the three trained models (contract 1.1) the result is 25/29: the legitimate SIP and AGM notices come back ELEVATED/MODERATE in both modes (see Known limitations); expectations were not edited.
 
-**Latency** (laptop CPU, warm OCR, 16 screenshots): median about 2.0 s, max 2.4 s. Pasted text: under 30 ms. The first request after start-up is slower if warm-up is disabled.
+**Latency** (laptop CPU, warm OCR, 16 screenshots): median about 3.1 s with the models, max 3.5 s. Pasted text: under 30 ms. The first request after start-up is slower if warm-up is disabled.
 
 **Remaining OCR effects** (engine side, reported rather than patched):
 
@@ -155,12 +155,24 @@ The set is a smoke test of the integration, not an accuracy measurement. All run
 
 Screenshots generally score at or below the typed text for the same message.
 
+## Contract 1.1 (trained models)
+
+Version 1.1 only adds fields; 1.0 clients keep working.
+
+| Field | Values | Meaning |
+| --- | --- | --- |
+| `analysis_status` | `COMPLETED`, `PARTIAL`, `INCONCLUSIVE` | `PARTIAL`: a trained model could not run, so the result is incomplete |
+| `classification` | `likely_scam`, `suspicious`, `no_strong_indicators`, `undetermined` | Low + `PARTIAL` is `undetermined`, never "no indicators" |
+| `risk.category` | `HIGH`, `MEDIUM`, `LOW`, `UNKNOWN` | HIGH_ATTENTION, ELEVATED or MODERATE, LOW_ATTENTION, INCONCLUSIVE |
+| `detectors[].model_score`, `detectors[].tier` | 0-1, `high` / `medium` / `low` | Raw (uncalibrated) model output and its validated tier |
+
+The illustrative response shape from the integration brief maps onto existing fields instead of duplicating them: `success` = HTTP 200 (errors use the `{detail, error}` envelope), `analysis_id`, `risk_level` = `risk.category`, `risk_score` = `risk.score`, `classification`, `findings` = `signals[]` (with evidence phrases and URLs), `recommendations` = `recommendation` + `verification`, `analysis_status`.
+
 ## Known limitations
 
-- **Image classifier unavailable here.** No `model.pth`, and the S3 download needs `boto3` and AWS credentials. Screenshot checks run without the visual signal and say so.
-- **Text classifier untrained.** `TEXT_MODEL_PATH` is not set.
+- **Legitimate Indian financial notices.** The text model rates some genuine SIP/AGM notices MEDIUM (validation set 25/29; the 4 failures are these). Fix: retrain with labelled legitimate notices.
 - **No external reputation.** Domain age, Safe Browsing and PhishTank / OpenPhish are `not_implemented`.
-- **Uncalibrated scores.** Thresholds are hand-set; scores are not probabilities.
+- **Uncalibrated scores.** Model tiers use thresholds chosen on validation data, but no score is a probability.
 - **Small validation set,** synthetic screenshots in one font; real phone screenshots will differ.
 - **One analysis at a time.** A stuck check makes later requests return `busy` until it finishes.
 - **Contract not yet signed off** by the engine owners.
@@ -178,7 +190,7 @@ Screenshots generally score at or below the typed text for the same message.
 ## Tests
 
 ```powershell
-cd src
+cd src                     # inside the project folder, beside data, models and venv
 python -m pytest tests -q
-python anweshabackend/security_check.py http://127.0.0.1:8001 --log <server log>
+python "mobile server/security_check.py" http://127.0.0.1:8001 --log <server log>
 ```

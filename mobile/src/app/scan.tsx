@@ -68,7 +68,7 @@ function ModeToggle({ mode, onChange }: { mode: ScanMode; onChange: (mode: ScanM
             onPress={() => onChange(option.value)}
             style={[styles.toggleOption, active && styles.toggleOptionActive]}
           >
-            <Ionicons name={option.icon} size={18} color={active ? Colors.primary : Colors.muted} />
+            <Ionicons name={option.icon} size={18} color={active ? Colors.accent : Colors.muted} />
             <AppText variant="label" tone={active ? "primary" : "muted"}>
               {option.label}
             </AppText>

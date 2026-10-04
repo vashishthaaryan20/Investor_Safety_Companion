@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   bubble: {
-    backgroundColor: "#DCFCE7",
+    backgroundColor: Colors.successSoft,
     borderRadius: Radius.md,
     borderTopLeftRadius: 4,
     padding: Space.md,

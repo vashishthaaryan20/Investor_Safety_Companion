@@ -11,12 +11,14 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-CONTRACT_VERSION = "1.0"
+CONTRACT_VERSION = "1.1"
 
 # ---------------------------------------------------------------- engine output
 
 DetectorStatus = Literal["ok", "disabled", "unavailable", "not_configured", "not_implemented"]
 EngineLevel = Literal["dangerous", "suspicious", "low", "unknown"]
+# Validated threshold tier a trained model's score reached (phishing_detector/model_thresholds.json).
+ModelTier = Literal["medium", "high"]
 
 
 class _Lenient(BaseModel):
@@ -39,6 +41,8 @@ class EngineDetection(_Lenient):
     findings: list[EngineFinding] = []
     detail: str = ""
     score: float = Field(default=0, ge=0, le=1)
+    model_score: float | None = Field(default=None, ge=0, le=1)
+    tier: ModelTier | None = None
 
 
 class EngineEntity(BaseModel):
@@ -70,11 +74,17 @@ class EngineOutput(_Lenient):
 # ---------------------------------------------------------------- API response
 
 RiskLevel = Literal["HIGH_ATTENTION", "ELEVATED", "MODERATE", "LOW_ATTENTION", "INCONCLUSIVE"]
+RiskCategory = Literal["HIGH", "MEDIUM", "LOW", "UNKNOWN"]
 Action = Literal["STOP_AND_VERIFY", "VERIFY_BEFORE_PROCEEDING", "RETRY_WITH_CLEARER_INPUT"]
+Classification = Literal["likely_scam", "suspicious", "no_strong_indicators", "undetermined"]
+# COMPLETED: every check that applies ran. PARTIAL: a trained model could not run.
+AnalysisStatus = Literal["COMPLETED", "PARTIAL", "INCONCLUSIVE"]
 
 
 class Risk(BaseModel):
     level: RiskLevel
+    # Three-band summary of level: HIGH_ATTENTION, ELEVATED or MODERATE, LOW_ATTENTION.
+    category: RiskCategory
     score: int = Field(ge=0, le=100)
     score_max: Literal[100] = 100
     # How reliably the input was read (OCR quality), not the probability of fraud.
@@ -103,6 +113,9 @@ class DetectorSummary(BaseModel):
     name: str
     status: DetectorStatus
     score: float = Field(ge=0, le=1)
+    # Trained models only. model_score is the raw, uncalibrated output; tier is what counts.
+    model_score: float | None = Field(default=None, ge=0, le=1)
+    tier: ModelTier | None = None
 
 
 class Metadata(BaseModel):
@@ -129,6 +142,8 @@ class AnalysisResponse(BaseModel):
     analysis_id: str = Field(min_length=1)
     analyzed_at: str
     status: Literal["success", "inconclusive"]
+    analysis_status: AnalysisStatus
+    classification: Classification
     analysis_mode: Literal["screenshot_ocr", "pasted_text"]
     extracted_text: str
     detected_urls: list[str]

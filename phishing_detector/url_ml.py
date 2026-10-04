@@ -2,10 +2,11 @@
 
 import logging
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
+from . import artifacts
 from .datasets import audit_text, clean_records, read_source
-from .detectors import Detection, Finding
+from .detectors import Detection, Finding, belongs, hostname
 from .text_ml import load_model
 
 
@@ -55,35 +56,70 @@ def train(path, output, overwrite=False):
     return train_baseline(path, output, overwrite=overwrite, kind="url")
 
 
-def detect(entities, path=None):
+TIER_TEXT = {
+    "medium": "The trained URL model found a link pattern similar to known phishing links.",
+    "high": "The trained URL model found a link pattern strongly similar to known phishing links.",
+}
+
+
+def as_url(value):
+    """Full http(s) URL with a lowercase scheme and host, as in the training data."""
+    value = value.strip()
+    if urlsplit(value).scheme.lower() not in {"http", "https"}:
+        value = "https://" + value
+    try:
+        parts = urlsplit(value)
+        return urlunsplit(parts._replace(scheme=parts.scheme.lower(), netloc=parts.netloc.lower()))
+    except ValueError:
+        return value
+
+
+def detect(entities, path=None, official=()):
+    """Official domains are skipped: the model has not learned which hosts are genuine."""
     if not path:
         return Detection("url_ml", "not_configured")
-    urls = [e for e in entities if e["type"] in {"url", "domain"}]
+    path = Path(path)
+    if not path.is_file():
+        return Detection("url_ml", "unavailable", detail="URL model file not found")
+    thresholds = artifacts.thresholds_for("url", path)
+    if thresholds is None:
+        return Detection(
+            "url_ml", "unavailable", detail="No validated thresholds for this URL model file"
+        )
+    urls = []
+    for e in entities:
+        if e["type"] not in {"url", "domain"}:
+            continue
+        value = (e.get("normalized") or e["value"] or "").strip()
+        host = hostname(value)
+        if host and not any(belongs(host, d) for d in official):
+            urls.append((e, as_url(value)))
     if not urls:
-        return Detection("url_ml", "ok", detail="No URLs to classify")
+        return Detection("url_ml", "ok", detail="No unverified URLs to classify")
     try:
-        model = load_model(path)
+        model = load_model(str(path))
         index = list(model.classes_).index("phishing")
-        findings = []
-        for entity in urls:
-            value = entity.get("normalized") or entity["value"]
-            if not value.startswith(("http://", "https://")):
-                value = "https://" + value
-            score = float(model.predict_proba([value])[0][index]) * entity.get(
-                "ocr_confidence", 1
-            )
-            findings.append(
+        scores = model.predict_proba([value for _, value in urls])[:, index]
+        detection = Detection("url_ml", model_score=round(float(max(scores)), 4))
+        for (entity, value), score in zip(urls, scores):
+            level = artifacts.tier(float(score), thresholds)
+            if not level:
+                continue
+            if detection.tier != "high":
+                detection.tier = level
+            read = entity.get("ocr_confidence")
+            detection.findings.append(
                 Finding(
                     "url_ml",
-                    score,
+                    artifacts.TIER_SCORES[level] * (1 if read is None else read),
                     "URL classifier signal",
-                    "The URL model found patterns associated with phishing.",
+                    TIER_TEXT[level],
                     value,
                 )
             )
-        return Detection("url_ml", findings=findings)
+        return detection
     except Exception:
-        logging.getLogger(__name__).exception("Optional URL classifier unavailable")
+        logging.getLogger(__name__).exception("URL classifier failed")
         return Detection(
             "url_ml", "unavailable", detail="URL model could not be loaded or evaluated"
         )

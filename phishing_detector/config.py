@@ -6,6 +6,8 @@ from pathlib import Path
 import torch
 from dotenv import load_dotenv
 
+from . import artifacts
+
 PKG_DIR = Path(__file__).resolve().parent  # src/phishing-detector/
 SRC_DIR = PKG_DIR.parent  # src/
 
@@ -36,10 +38,11 @@ S3_RESULTS_PREFIX = os.getenv("S3_RESULTS_PREFIX", "results/")
 # Local cache - everything pulled from S3 lands here. It is git-ignored.
 CACHE_DIR = PKG_DIR / ".cache"
 MODELS_DIR = CACHE_DIR / "models"
+# IMAGE_MODEL_PATH, else the submission's trained model, else the S3 download cache.
 MODEL_PATH = (
-    Path(os.getenv("IMAGE_MODEL_PATH", str(MODELS_DIR / "model.pth")))
-    .expanduser()
-    .resolve()
+    artifacts.model_path("image")
+    if os.getenv("IMAGE_MODEL_PATH") or artifacts.model_path("image").is_file()
+    else (MODELS_DIR / "model.pth").resolve()
 )
 # Prefer the dataset beside src/; DATA_DIR can override it with another local path.
 LOCAL_DATA_CANDIDATES = (

@@ -186,7 +186,7 @@ def run(base: str, log_path: Path | None) -> None:
     print("\nNothing retained or leaked")
     uploads = Path(__file__).resolve().parent / "uploads"
     retained = [p.name for p in uploads.iterdir()] if uploads.exists() else []
-    check(not retained, "no screenshots written to anweshabackend/uploads")
+    check(not retained, "no screenshots written to mobile server/uploads")
     if log_path:
         log_text = log_path.read_text(encoding="utf-8", errors="replace")
         check(MARKER not in log_text, "planted private text never appears in the server log")

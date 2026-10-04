@@ -16,6 +16,17 @@
     "Upstox": ["upstox.com"],
     "Angel One": ["angelone.in"]
   },
+  "official_domains": [
+    "sebi.gov.in",
+    "rbi.org.in",
+    "nseindia.com",
+    "bseindia.com",
+    "amfiindia.com",
+    "npci.org.in",
+    "cdslindia.com",
+    "nsdl.co.in",
+    "incometax.gov.in"
+  ],
   "blocklist": [],
   "shorteners": [
     "bit.ly",
