@@ -1,0 +1,205 @@
+{
+  "environment": {
+    "python": "3.13.14",
+    "scikit_learn": "1.9.1",
+    "torch": "2.14.1+cpu"
+  },
+  "models": {
+    "text": {
+      "file": "text.joblib",
+      "exists": true,
+      "size_mb": 2.37,
+      "sha256": "833bcb15f3dd3f0759e0422bed1338afa3d0649660b08a2962330a91ffcdb48c",
+      "load_ms": 1699,
+      "load_warnings": [],
+      "format": "joblib (scikit-learn Pipeline)",
+      "steps": [
+        "tfidfvectorizer: TfidfVectorizer",
+        "logisticregression: LogisticRegression"
+      ],
+      "analyzer": "word",
+      "ngram_range": [
+        1,
+        2
+      ],
+      "lowercase": true,
+      "vocabulary_size": 50000,
+      "classes": [
+        "legitimate",
+        "phishing"
+      ],
+      "phishing_index": 1,
+      "output": "predict_proba(list[str]) -> [[p_legitimate, p_phishing]]"
+    },
+    "url": {
+      "file": "url.joblib",
+      "exists": true,
+      "size_mb": 2.1,
+      "sha256": "8c680a94afbab5a43b2206421bd4b09e0f96565ca8544c97ca3ec88d03c64eaf",
+      "load_ms": 283,
+      "load_warnings": [],
+      "format": "joblib (scikit-learn Pipeline)",
+      "steps": [
+        "tfidfvectorizer: TfidfVectorizer",
+        "logisticregression: LogisticRegression"
+      ],
+      "analyzer": "char",
+      "ngram_range": [
+        3,
+        5
+      ],
+      "lowercase": false,
+      "vocabulary_size": 50000,
+      "classes": [
+        "legitimate",
+        "phishing"
+      ],
+      "phishing_index": 1,
+      "output": "predict_proba(list[str]) -> [[p_legitimate, p_phishing]]"
+    },
+    "image": {
+      "file": "image.pth",
+      "exists": true,
+      "size_mb": 94.37,
+      "sha256": "d1c289681d75cd765da67bbc334ad1f65587e21b2033f0e40e1db14b4fdea91d",
+      "format": "PyTorch state_dict (ResNet50, fc -> 2 classes)",
+      "tensors": 320,
+      "fc_weight_shape": [
+        2,
+        2048
+      ],
+      "classes": [
+        "legitimate",
+        "phishing"
+      ],
+      "preprocessing": "RGB, resize 224x224, ToTensor, ImageNet mean/std normalise",
+      "output": "softmax over [legitimate, phishing]",
+      "load_ms": 506,
+      "parameters": 23512130
+    }
+  },
+  "predictions": {
+    "text": {
+      "legitimate": {
+        "input": "Your SIP of Rs 5000 in XYZ Flexi Cap Fund has been processed. Units will be allotted at the applicable NAV.",
+        "model_input": "Your SIP of Rs 5000 in XYZ Flexi Cap Fund has been processed. Units will be allotted at the applicable NAV.",
+        "phishing_score": 0.9056,
+        "predicted": "phishing",
+        "median_ms": 0.79
+      },
+      "known_phishing": {
+        "input": "Dear customer, your SBI account will be blocked today. Update your KYC immediately at http://sbi-kyc-update.top/verify to avoid suspension.",
+        "model_input": "Dear customer, your SBI account will be blocked today. Update your KYC immediately at http://sbi-kyc-update.top/verify to avoid suspension.",
+        "phishing_score": 0.9873,
+        "predicted": "phishing",
+        "median_ms": 0.52
+      },
+      "suspicious_url": {
+        "input": "Check this http://bit.ly/3xR9fake",
+        "model_input": "Check this http://bit.ly/3xR9fake",
+        "phishing_score": 0.4749,
+        "predicted": "legitimate",
+        "median_ms": 0.74
+      },
+      "empty": {
+        "input": "",
+        "model_input": "",
+        "phishing_score": 0.1781,
+        "predicted": "legitimate",
+        "median_ms": 0.62
+      },
+      "whitespace_only": {
+        "input": "   \n\t  ",
+        "model_input": "   \n\t  ",
+        "phishing_score": 0.1781,
+        "predicted": "legitimate",
+        "median_ms": 0.58
+      },
+      "unusual_formatting": {
+        "input": "UR ACC0UNT  W1LL B3 SUSP3NDED!!! 🚨🚨\n\nCL1CK >>> hxxp://secure-login[.]verify-acct.co <<<​​ NOW",
+        "model_input": "UR ACC0UNT  W1LL B3 SUSP3NDED!!! 🚨🚨\n\nCL1CK >>> hxxp://secure-login[.]verify-acct.co <<<​​ NOW",
+        "phishing_score": 0.4849,
+        "predicted": "legitimate",
+        "median_ms": 0.79
+      }
+    },
+    "url": {
+      "legitimate": {
+        "input": "https://www.hdfcbank.com/personal/pay/cards",
+        "model_input": "https://www.hdfcbank.com/personal/pay/cards",
+        "phishing_score": 0.7522,
+        "predicted": "phishing",
+        "median_ms": 0.57
+      },
+      "suspicious": {
+        "input": "http://hdfc-netbanking-secure.verify-login.top/account/update.php?id=8812",
+        "model_input": "http://hdfc-netbanking-secure.verify-login.top/account/update.php?id=8812",
+        "phishing_score": 0.9974,
+        "predicted": "phishing",
+        "median_ms": 0.68
+      },
+      "ip_host": {
+        "input": "http://185.243.115.84/login/sbi/index.html",
+        "model_input": "http://185.243.115.84/login/sbi/index.html",
+        "phishing_score": 0.9598,
+        "predicted": "phishing",
+        "median_ms": 0.69
+      },
+      "unusual_formatting": {
+        "input": "HTTPS://WWW.PAYTM.COM.SECURE-REWARD.XYZ/CLAIM",
+        "model_input": "https://HTTPS://WWW.PAYTM.COM.SECURE-REWARD.XYZ/CLAIM",
+        "phishing_score": 0.0006,
+        "predicted": "legitimate",
+        "median_ms": 0.76
+      },
+      "empty": {
+        "input": "",
+        "model_input": "https://",
+        "phishing_score": 0.0007,
+        "predicted": "legitimate",
+        "median_ms": 0.61
+      },
+      "invalid": {
+        "input": "not a url at all",
+        "model_input": "https://not a url at all",
+        "phishing_score": 0.0843,
+        "predicted": "legitimate",
+        "median_ms": 0.65
+      }
+    },
+    "image": {
+      "legitimate_message_screenshot": {
+        "phishing_score": 0.0174,
+        "predicted": "legitimate",
+        "median_ms": 96.45
+      },
+      "phishing_message_screenshot": {
+        "phishing_score": 0.0028,
+        "predicted": "legitimate",
+        "median_ms": 76.46
+      },
+      "blank_image": {
+        "phishing_score": 0.5711,
+        "predicted": "phishing",
+        "median_ms": 74.13
+      },
+      "noise_image": {
+        "phishing_score": 0.0178,
+        "predicted": "legitimate",
+        "median_ms": 74.34
+      },
+      "tiny_image": {
+        "phishing_score": 0.5711,
+        "predicted": "phishing",
+        "median_ms": 68.98
+      },
+      "invalid_bytes": {
+        "error": "UnidentifiedImageError: cannot identify image file <_io.BytesIO object at 0x00000248B3E92AC0>"
+      }
+    },
+    "text_non_string": {
+      "none": "AttributeError: 'NoneType' object has no attribute 'lower'",
+      "integer": "AttributeError: 'int' object has no attribute 'lower'"
+    }
+  }
+}

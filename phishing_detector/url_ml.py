@@ -1,4 +1,4 @@
-"""URL character TF-IDF baseline, trained independently from message text."""
+ """URL character TF-IDF baseline, trained independently from message text."""
 
 import logging
 from pathlib import Path

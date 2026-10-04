@@ -1,0 +1,648 @@
+{
+  "health": {
+    "status": "ok",
+    "message": "SANGYAN Shield API is running",
+    "version": "1.4.0",
+    "contract_version": "1.1",
+    "engine": {
+      "ready": true,
+      "ocr": "ready",
+      "rules": "ready",
+      "image_classifier": {
+        "status": "loaded",
+        "reason": "Model loaded."
+      },
+      "text_classifier": {
+        "status": "loaded",
+        "reason": "Model loaded."
+      },
+      "url_classifier": {
+        "status": "loaded",
+        "reason": "Model loaded."
+      },
+      "external_reputation": "not_implemented",
+      "degraded": []
+    }
+  },
+  "results": [
+    {
+      "id": "legit-sip",
+      "group": "legitimate",
+      "label": "legitimate",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 60,
+      "engine_level": "suspicious",
+      "confidence": 1.0,
+      "signals": [
+        "scam_language"
+      ],
+      "client_ms": 21,
+      "server_ms": 3,
+      "ocr_ms": null,
+      "passed": false,
+      "problems": [
+        "level ELEVATED above LOW_ATTENTION"
+      ]
+    },
+    {
+      "id": "legit-sip",
+      "group": "legitimate",
+      "label": "legitimate",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 44,
+      "engine_level": "suspicious",
+      "confidence": 0.74,
+      "signals": [
+        "scam_language"
+      ],
+      "client_ms": 3189,
+      "server_ms": 3178,
+      "ocr_ms": 3083,
+      "passed": false,
+      "problems": [
+        "level ELEVATED above LOW_ATTENTION"
+      ]
+    },
+    {
+      "id": "legit-agm",
+      "group": "legitimate",
+      "label": "legitimate",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 60,
+      "engine_level": "suspicious",
+      "confidence": 1.0,
+      "signals": [
+        "scam_language"
+      ],
+      "client_ms": 11,
+      "server_ms": 6,
+      "ocr_ms": null,
+      "passed": false,
+      "problems": [
+        "level ELEVATED above LOW_ATTENTION"
+      ]
+    },
+    {
+      "id": "legit-agm",
+      "group": "legitimate",
+      "label": "legitimate",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "MODERATE",
+      "score": 28,
+      "engine_level": "low",
+      "confidence": 0.79,
+      "signals": [
+        "scam_language"
+      ],
+      "client_ms": 2867,
+      "server_ms": 2855,
+      "ocr_ms": 2776,
+      "passed": false,
+      "problems": [
+        "level MODERATE above LOW_ATTENTION"
+      ]
+    },
+    {
+      "id": "legit-market",
+      "group": "legitimate",
+      "label": "legitimate",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "LOW_ATTENTION",
+      "score": 0,
+      "engine_level": "low",
+      "confidence": 1.0,
+      "signals": [],
+      "client_ms": 10,
+      "server_ms": 5,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "legit-market",
+      "group": "legitimate",
+      "label": "legitimate",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "LOW_ATTENTION",
+      "score": 0,
+      "engine_level": "low",
+      "confidence": 0.91,
+      "signals": [],
+      "client_ms": 3083,
+      "server_ms": 3071,
+      "ocr_ms": 2982,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "guaranteed-monthly",
+      "group": "guaranteed_returns",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 60,
+      "engine_level": "suspicious",
+      "confidence": 1.0,
+      "signals": [
+        "guaranteed_returns",
+        "scam_language"
+      ],
+      "client_ms": 10,
+      "server_ms": 6,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "guaranteed-monthly",
+      "group": "guaranteed_returns",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 60,
+      "engine_level": "suspicious",
+      "confidence": 0.85,
+      "signals": [
+        "guaranteed_returns",
+        "scam_language"
+      ],
+      "client_ms": 3344,
+      "server_ms": 3334,
+      "ocr_ms": 3187,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "guaranteed-double",
+      "group": "guaranteed_returns",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 60,
+      "engine_level": "suspicious",
+      "confidence": 1.0,
+      "signals": [
+        "guaranteed_returns",
+        "scam_language"
+      ],
+      "client_ms": 10,
+      "server_ms": 5,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "guaranteed-double",
+      "group": "guaranteed_returns",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 60,
+      "engine_level": "suspicious",
+      "confidence": 0.83,
+      "signals": [
+        "guaranteed_returns",
+        "scam_language"
+      ],
+      "client_ms": 3494,
+      "server_ms": 3481,
+      "ocr_ms": 3332,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "urgency-preipo",
+      "group": "urgency",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "MODERATE",
+      "score": 20,
+      "engine_level": "low",
+      "confidence": 1.0,
+      "signals": [
+        "urgency"
+      ],
+      "client_ms": 14,
+      "server_ms": 7,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "urgency-preipo",
+      "group": "urgency",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "MODERATE",
+      "score": 20,
+      "engine_level": "low",
+      "confidence": 0.7,
+      "signals": [
+        "urgency"
+      ],
+      "client_ms": 3549,
+      "server_ms": 3538,
+      "ocr_ms": 3410,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "urgency-transfer",
+      "group": "urgency",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 85,
+      "engine_level": "dangerous",
+      "confidence": 1.0,
+      "signals": [
+        "urgency",
+        "scam_language"
+      ],
+      "client_ms": 11,
+      "server_ms": 6,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "urgency-transfer",
+      "group": "urgency",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 70,
+      "engine_level": "suspicious",
+      "confidence": 0.81,
+      "signals": [
+        "urgency",
+        "scam_language"
+      ],
+      "client_ms": 3398,
+      "server_ms": 3386,
+      "ocr_ms": 3247,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "sensitive-otp",
+      "group": "sensitive_information",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "engine_level": "dangerous",
+      "confidence": 1.0,
+      "signals": [
+        "sensitive_request",
+        "scam_language"
+      ],
+      "client_ms": 10,
+      "server_ms": 6,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "sensitive-otp",
+      "group": "sensitive_information",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "engine_level": "dangerous",
+      "confidence": 0.7,
+      "signals": [
+        "sensitive_request",
+        "scam_language"
+      ],
+      "client_ms": 3125,
+      "server_ms": 3112,
+      "ocr_ms": 3011,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "sensitive-password",
+      "group": "sensitive_information",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 80,
+      "engine_level": "suspicious",
+      "confidence": 1.0,
+      "signals": [
+        "sensitive_request",
+        "payment_request",
+        "scam_language"
+      ],
+      "client_ms": 35,
+      "server_ms": 6,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "sensitive-password",
+      "group": "sensitive_information",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 80,
+      "engine_level": "suspicious",
+      "confidence": 0.81,
+      "signals": [
+        "sensitive_request",
+        "payment_request",
+        "scam_language"
+      ],
+      "client_ms": 2898,
+      "server_ms": 2887,
+      "ocr_ms": 2795,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "url-shortener",
+      "group": "suspicious_url",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "engine_level": "dangerous",
+      "confidence": 1.0,
+      "signals": [
+        "fake_platform",
+        "suspicious_url",
+        "short_link",
+        "scam_language",
+        "scam_link_pattern"
+      ],
+      "client_ms": 13,
+      "server_ms": 8,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "url-shortener",
+      "group": "suspicious_url",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 90,
+      "engine_level": "suspicious",
+      "confidence": 0.74,
+      "signals": [
+        "fake_platform",
+        "suspicious_url",
+        "scam_language",
+        "scam_link_pattern"
+      ],
+      "client_ms": 2782,
+      "server_ms": 2769,
+      "ocr_ms": 2632,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "url-lookalike",
+      "group": "suspicious_url",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "engine_level": "dangerous",
+      "confidence": 1.0,
+      "signals": [
+        "suspicious_url",
+        "risky_domain_ending",
+        "brand_link_mismatch",
+        "scam_language",
+        "scam_link_pattern"
+      ],
+      "client_ms": 15,
+      "server_ms": 10,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "url-lookalike",
+      "group": "suspicious_url",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 86,
+      "engine_level": "dangerous",
+      "confidence": 0.73,
+      "signals": [
+        "suspicious_url",
+        "scam_language",
+        "scam_link_pattern"
+      ],
+      "client_ms": 2757,
+      "server_ms": 2746,
+      "ocr_ms": 2631,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "mixed-insider",
+      "group": "mixed",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "engine_level": "dangerous",
+      "confidence": 1.0,
+      "signals": [
+        "guaranteed_returns",
+        "urgency",
+        "unverified_tip",
+        "fake_regulator",
+        "sensitive_request",
+        "payment_request",
+        "suspicious_url",
+        "scam_language",
+        "scam_link_pattern"
+      ],
+      "client_ms": 16,
+      "server_ms": 10,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "mixed-insider",
+      "group": "mixed",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "engine_level": "dangerous",
+      "confidence": 0.83,
+      "signals": [
+        "guaranteed_returns",
+        "urgency",
+        "unverified_tip",
+        "fake_regulator",
+        "sensitive_request",
+        "payment_request",
+        "scam_language"
+      ],
+      "client_ms": 3306,
+      "server_ms": 3292,
+      "ocr_ms": 3206,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "mixed-withdrawal",
+      "group": "mixed",
+      "label": "scam",
+      "mode": "text",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 60,
+      "engine_level": "suspicious",
+      "confidence": 1.0,
+      "signals": [
+        "fake_platform",
+        "scam_language"
+      ],
+      "client_ms": 10,
+      "server_ms": 6,
+      "ocr_ms": null,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "mixed-withdrawal",
+      "group": "mixed",
+      "label": "scam",
+      "mode": "image",
+      "http": 200,
+      "status": "success",
+      "level": "ELEVATED",
+      "score": 60,
+      "engine_level": "suspicious",
+      "confidence": 0.82,
+      "signals": [
+        "fake_platform",
+        "scam_language"
+      ],
+      "client_ms": 2932,
+      "server_ms": 2919,
+      "ocr_ms": 2840,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "unreadable-blank",
+      "group": "unreadable",
+      "label": "unreadable",
+      "mode": "image",
+      "http": 200,
+      "status": "inconclusive",
+      "level": "INCONCLUSIVE",
+      "score": 0,
+      "engine_level": "unknown",
+      "confidence": 0.0,
+      "signals": [],
+      "client_ms": 2376,
+      "server_ms": 2366,
+      "ocr_ms": 2253,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "unreadable-blur",
+      "group": "unreadable",
+      "label": "unreadable",
+      "mode": "image",
+      "http": 200,
+      "status": "inconclusive",
+      "level": "INCONCLUSIVE",
+      "score": 0,
+      "engine_level": "unknown",
+      "confidence": 0.0,
+      "signals": [],
+      "client_ms": 2629,
+      "server_ms": 2616,
+      "ocr_ms": 2479,
+      "passed": true,
+      "problems": []
+    },
+    {
+      "id": "unreadable-noise",
+      "group": "unreadable",
+      "label": "unreadable",
+      "mode": "image",
+      "http": 200,
+      "status": "inconclusive",
+      "level": "INCONCLUSIVE",
+      "score": 0,
+      "engine_level": "unknown",
+      "confidence": 0.0,
+      "signals": [],
+      "client_ms": 2530,
+      "server_ms": 2464,
+      "ocr_ms": 2349,
+      "passed": true,
+      "problems": []
+    }
+  ]
+}

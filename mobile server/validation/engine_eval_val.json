@@ -1,0 +1,211 @@
+{
+  "split": "val",
+  "fusion_weights": {
+    "text_ml": 0.8,
+    "url_ml": 0.8,
+    "image_classifier": 0.55
+  },
+  "messages": {
+    "count": 1758,
+    "flagged_medium_or_high": {
+      "precision": 0.9692,
+      "recall": 0.9574,
+      "f1": 0.9633,
+      "false_positive_rate": 0.0182,
+      "confusion_matrix": [
+        [
+          1080,
+          20
+        ],
+        [
+          28,
+          630
+        ]
+      ]
+    },
+    "high_only": {
+      "precision": 0.9855,
+      "recall": 0.1033,
+      "f1": 0.1871,
+      "false_positive_rate": 0.0009,
+      "confusion_matrix": [
+        [
+          1099,
+          1
+        ],
+        [
+          590,
+          68
+        ]
+      ]
+    },
+    "categories_by_label": {
+      "legitimate": {
+        "LOW": 990,
+        "UNKNOWN": 90,
+        "MEDIUM": 19,
+        "HIGH": 1
+      },
+      "phishing": {
+        "MEDIUM": 562,
+        "LOW": 27,
+        "HIGH": 68,
+        "UNKNOWN": 1
+      }
+    },
+    "analysis_status": {
+      "COMPLETED": 1667,
+      "INCONCLUSIVE": 91
+    },
+    "latency_ms": {
+      "mean": 5.13,
+      "p50": 3.92,
+      "p95": 6.16
+    }
+  },
+  "in_domain_cases": [
+    {
+      "id": "legit-sip",
+      "label": "legitimate",
+      "category": "MEDIUM",
+      "level": "ELEVATED",
+      "score": 60,
+      "models": {
+        "text_ml": "high"
+      }
+    },
+    {
+      "id": "legit-agm",
+      "label": "legitimate",
+      "category": "MEDIUM",
+      "level": "ELEVATED",
+      "score": 60,
+      "models": {
+        "text_ml": "high"
+      }
+    },
+    {
+      "id": "legit-market",
+      "label": "legitimate",
+      "category": "LOW",
+      "level": "LOW_ATTENTION",
+      "score": 0,
+      "models": {
+        "text_ml": null
+      }
+    },
+    {
+      "id": "guaranteed-monthly",
+      "label": "scam",
+      "category": "MEDIUM",
+      "level": "ELEVATED",
+      "score": 60,
+      "models": {
+        "text_ml": "high"
+      }
+    },
+    {
+      "id": "guaranteed-double",
+      "label": "scam",
+      "category": "MEDIUM",
+      "level": "ELEVATED",
+      "score": 60,
+      "models": {
+        "text_ml": "high"
+      }
+    },
+    {
+      "id": "urgency-preipo",
+      "label": "scam",
+      "category": "MEDIUM",
+      "level": "MODERATE",
+      "score": 20,
+      "models": {
+        "text_ml": null
+      }
+    },
+    {
+      "id": "urgency-transfer",
+      "label": "scam",
+      "category": "HIGH",
+      "level": "HIGH_ATTENTION",
+      "score": 85,
+      "models": {
+        "text_ml": "high"
+      }
+    },
+    {
+      "id": "sensitive-otp",
+      "label": "scam",
+      "category": "HIGH",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "models": {
+        "text_ml": "high"
+      }
+    },
+    {
+      "id": "sensitive-password",
+      "label": "scam",
+      "category": "HIGH",
+      "level": "HIGH_ATTENTION",
+      "score": 80,
+      "models": {
+        "text_ml": "high"
+      }
+    },
+    {
+      "id": "url-shortener",
+      "label": "scam",
+      "category": "HIGH",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "models": {
+        "text_ml": "high",
+        "url_ml": "medium"
+      }
+    },
+    {
+      "id": "url-lookalike",
+      "label": "scam",
+      "category": "HIGH",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "models": {
+        "text_ml": "high",
+        "url_ml": "high"
+      }
+    },
+    {
+      "id": "mixed-insider",
+      "label": "scam",
+      "category": "HIGH",
+      "level": "HIGH_ATTENTION",
+      "score": 100,
+      "models": {
+        "text_ml": "high",
+        "url_ml": "high"
+      }
+    },
+    {
+      "id": "mixed-withdrawal",
+      "label": "scam",
+      "category": "MEDIUM",
+      "level": "ELEVATED",
+      "score": 60,
+      "models": {
+        "text_ml": "high"
+      }
+    }
+  ],
+  "in_domain_summary": {
+    "legitimate": {
+      "MEDIUM": 2,
+      "LOW": 1
+    },
+    "scam": {
+      "MEDIUM": 4,
+      "HIGH": 6
+    }
+  }
+}
