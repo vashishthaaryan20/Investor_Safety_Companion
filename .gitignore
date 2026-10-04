@@ -1,39 +1,16 @@
-# Python
-venv/
-.venv/
-__pycache__/
-*.pyc
-*.pth
-
-# Environment variables
 .env
-.env/
 .env.*
 !.env.example
-
-# Node
 node_modules/
-
-# Build / generated files
+venv/
+/venv
+.venv/
+*.pyc
+.expo/
 dist/
 build/
-.cache/
-
-# Logs
 *.log
-
-# macOS
-.DS_Store
-
-# Expo / generated
-.expo/
-mobile/android/
-mobile/ios/
-
-# Local-only files
-/venv
+.cache/
+__pycache__/
+*.pth
 tree_output.txt
-mobile server/uploads/
-mobile server/validation/.fault
-.pytest_cache/
-tempCodeRunnerFile.*

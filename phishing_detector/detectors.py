@@ -22,9 +22,6 @@ class Detection:
     status: str = "ok"
     findings: list = field(default_factory=list)
     detail: str = ""
-    # Trained models only: the raw (uncalibrated) score and the validated tier it reached.
-    model_score: float | None = None
-    tier: str | None = None
 
     def to_dict(self):
         result = asdict(self)

@@ -1,45 +1,6 @@
 {
-  "brands": {
-    "SBI": ["sbi.co.in", "onlinesbi.sbi", "sbi.bank.in", "sbisecurities.in"],
-    "State Bank of India": ["sbi.co.in", "onlinesbi.sbi", "sbi.bank.in"],
-    "HDFC": ["hdfcbank.com", "hdfc.bank.in", "hdfcsec.com", "hdfcfund.com"],
-    "HDFC Bank": ["hdfcbank.com", "hdfc.bank.in"],
-    "ICICI": ["icicibank.com", "icici.bank.in", "icicidirect.com"],
-    "ICICI Bank": ["icicibank.com", "icici.bank.in"],
-    "Axis Bank": ["axisbank.com", "axis.bank.in"],
-    "Kotak": ["kotak.com", "kotak.bank.in", "kotaksecurities.com"],
-    "Paytm": ["paytm.com", "paytmmoney.com"],
-    "PhonePe": ["phonepe.com"],
-    "Google Pay": ["pay.google.com", "google.com"],
-    "Zerodha": ["zerodha.com"],
-    "Groww": ["groww.in"],
-    "Upstox": ["upstox.com"],
-    "Angel One": ["angelone.in"]
-  },
-  "official_domains": [
-    "sebi.gov.in",
-    "rbi.org.in",
-    "nseindia.com",
-    "bseindia.com",
-    "amfiindia.com",
-    "npci.org.in",
-    "cdslindia.com",
-    "nsdl.co.in",
-    "incometax.gov.in"
-  ],
+  "brands": {},
   "blocklist": [],
-  "shorteners": [
-    "bit.ly",
-    "tinyurl.com",
-    "cutt.ly",
-    "is.gd",
-    "rb.gy",
-    "shorturl.at",
-    "t.ly",
-    "ow.ly",
-    "tiny.cc",
-    "rebrand.ly",
-    "goo.gl"
-  ],
-  "risky_tlds": ["xyz", "top", "click", "icu", "buzz", "sbs", "cfd", "cyou", "rest", "quest"]
+  "shorteners": [],
+  "risky_tlds": []
 }

@@ -24,10 +24,6 @@ __all__ = [
 MIN_CONF = 0.30
 MIN_CROP = 16
 TARGET_HEIGHT = 160
-# Longest side the text detector works at; words are still read from the full image.
-# 1600 halves CPU time on 1080x2400 phone screenshots versus EasyOCR's 2560 default
-# with equal accuracy (docs/model-integration.md, performance).
-DETECT_CANVAS = 1600
 VERBOSE = False
 
 # Number of characters around an entity to retain as context.
@@ -381,7 +377,7 @@ def extract_text(src, box=None, langs=("en",), return_confidence=False):
 
     t = time.time()
 
-    results = reader.readtext(arr, canvas_size=DETECT_CANVAS)
+    results = reader.readtext(arr)
 
     elapsed = time.time() - t
 

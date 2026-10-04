@@ -6,8 +6,6 @@ from pathlib import Path
 import torch
 from dotenv import load_dotenv
 
-from . import artifacts
-
 PKG_DIR = Path(__file__).resolve().parent  # src/phishing-detector/
 SRC_DIR = PKG_DIR.parent  # src/
 
@@ -21,28 +19,27 @@ load_dotenv(SRC_DIR / ".env")
 #  S3 LOCATIONS  -  FILL THESE IN  (anything still starting with "<" counts as "not set")
 # =====================================================================================
 # TODO(S3): bucket name, e.g. "my-fraud-detection-bucket"
-S3_BUCKET = os.getenv("S3_BUCKET", "sangayan")
+S3_BUCKET = os.getenv("S3_BUCKET", "<YOUR-BUCKET-NAME>")
 
 # TODO(S3): object key of the trained weights, e.g. "phishing-detector/models/model.pth"
-S3_MODEL_KEY = os.getenv("S3_MODEL_KEY", "models/phishing_detection/model.pth")
+S3_MODEL_KEY = os.getenv("S3_MODEL_KEY", "<PATH/TO/models/model.pth>")
 
 # TODO(S3): prefix of the dataset folder that directly contains train/ val/ test/
 #           e.g. "phishing-detector/data/Phishing dataset/image/"
-S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "data/image/")
+S3_DATA_PREFIX = os.getenv("S3_DATA_PREFIX", "<PATH/TO/dataset/image/>")
 
 # TODO(S3): prefix where evaluation / training results (json) get uploaded,
 #           e.g. "phishing-detector/results/"
-S3_RESULTS_PREFIX = os.getenv("S3_RESULTS_PREFIX", "results/")
+S3_RESULTS_PREFIX = os.getenv("S3_RESULTS_PREFIX", "<PATH/TO/results/>")
 # =====================================================================================
 
 # Local cache - everything pulled from S3 lands here. It is git-ignored.
 CACHE_DIR = PKG_DIR / ".cache"
 MODELS_DIR = CACHE_DIR / "models"
-# IMAGE_MODEL_PATH, else the submission's trained model, else the S3 download cache.
 MODEL_PATH = (
-    artifacts.model_path("image")
-    if os.getenv("IMAGE_MODEL_PATH") or artifacts.model_path("image").is_file()
-    else (MODELS_DIR / "model.pth").resolve()
+    Path(os.getenv("IMAGE_MODEL_PATH", str(MODELS_DIR / "model.pth")))
+    .expanduser()
+    .resolve()
 )
 # Prefer the dataset beside src/; DATA_DIR can override it with another local path.
 LOCAL_DATA_CANDIDATES = (
