@@ -43,7 +43,6 @@ class TextPayload(BaseModel):
 
 
 class FeedbackPayload(BaseModel):
-<<<<<<< HEAD
     analysis_id: UUID
     kind: Literal["wrong_verdict", "report_scam"]
     note: str = Field(default="", max_length=2000)
@@ -74,38 +73,6 @@ def process_image(data):
         raise HTTPException(503, "Analysis unavailable; please retry")
 
 
-=======
-    analysis_id: UUID
-    kind: Literal["wrong_verdict", "report_scam"]
-    note: str = Field(default="", max_length=2000)
-    evidence_text: str = Field(default="", max_length=20000)
-
-
-def process_image(data):
-    from io import BytesIO
-
-    from PIL import Image, UnidentifiedImageError
-
-    if not data or len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(
-            413 if data else 400, "Image must be nonempty and at most 10 MiB"
-        )
-    try:
-        with Image.open(BytesIO(data)) as image:
-            if image.width * image.height > 20_000_000:
-                raise HTTPException(413, "Image exceeds 20 million pixels")
-            image.verify()
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
-        raise HTTPException(400, "Invalid or unsupported image")
-    try:
-        with analysis_lock:
-            return analyze_image(data)
-    except Exception:
-        log.exception("Image analysis failed")
-        raise HTTPException(503, "Analysis unavailable; please retry")
-
-
->>>>>>> 7b0b83b (V1 commit - aryan)
 @app.get("/api/v1/health")
 def health_check():
     """Process liveness only; does not claim OCR or model readiness."""
@@ -126,7 +93,6 @@ def analyze_pasted_text(payload: TextPayload):
 
 
 @app.post("/api/v1/save-image-json")
-<<<<<<< HEAD
 def save_image_json(payload: ImagePayload):
     value = payload.image
     if value.startswith("data:"):
@@ -162,40 +128,3 @@ def feedback(payload: FeedbackPayload):
     return record_feedback(
         str(payload.analysis_id), payload.kind, payload.note, payload.evidence_text
     )
-=======
-def save_image_json(payload: ImagePayload):
-    value = payload.image
-    if value.startswith("data:"):
-        header, separator, value = value.partition(",")
-        if (
-            not separator
-            or not header.startswith("data:image/")
-            or not header.endswith(";base64")
-        ):
-            raise HTTPException(400, "Invalid image data URI")
-    try:
-        data = base64.b64decode(value, validate=True)
-    except (binascii.Error, ValueError):
-        raise HTTPException(400, "Invalid base64 image")
-    return {
-        "message": "Image processed successfully",
-        "saved_to": "memory",
-        "result": process_image(data),
-    }
-
-
-@app.post("/api/v1/analyze")
-async def analyze_screenshot(image: Annotated[UploadFile, File()]):
-    try:
-        data = await image.read(MAX_IMAGE_BYTES + 1)
-    finally:
-        await image.close()
-    return await run_in_threadpool(process_image, data)
-
-
-@app.post("/api/v1/feedback", status_code=201)
-def feedback(payload: FeedbackPayload):
-    return record_feedback(
-        str(payload.analysis_id), payload.kind, payload.note, payload.evidence_text
-    )
->>>>>>> 7b0b83b (V1 commit - aryan)
