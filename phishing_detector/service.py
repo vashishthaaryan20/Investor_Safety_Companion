@@ -1,9 +1,9 @@
 """Orchestration: one OCR pass, independent detectors, one response."""
 
 import logging
+import os
 from uuid import uuid4
 
-from . import artifacts
 from .detectors import (
     Detection,
     Finding,
@@ -66,7 +66,7 @@ def analyze_text(text, tokens=None, settings=None, extra_detections=()):
     ]
     from .text_ml import detect
 
-    text_detection = detect(text, artifacts.model_path("text"))
+    text_detection = detect(text, os.getenv("TEXT_MODEL_PATH"))
     if tokens:
         # Region confidence also qualifies the learned text signal.
         weight = sum(max(1, len(t["text"])) for t in tokens)
@@ -76,13 +76,7 @@ def analyze_text(text, tokens=None, settings=None, extra_detections=()):
     detections.append(text_detection)
     from .url_ml import detect as detect_urls
 
-    detections.append(
-        detect_urls(
-            entities,
-            artifacts.model_path("url"),
-            settings.get("official_domains", []),
-        )
-    )
+    detections.append(detect_urls(entities, os.getenv("URL_MODEL_PATH")))
     detections.extend(extra_detections)
     detections.append(detect_reputation(entities, settings["safe_browsing"]))
     detections.extend(
@@ -107,8 +101,7 @@ def analyze_text(text, tokens=None, settings=None, extra_detections=()):
             )
         ),
         "detectors": [d.to_dict() for d in detections],
-        # Rules plus trained models at validated tiers; the fused score is still not a probability.
-        "score_version": "rules-v1+models-training-v1",
+        "score_version": "rules-v1-uncalibrated",
     }
     pipeline_stage(4, "Fuse evidence and build explanation")
     result.update(fuse(detections, text, tokens, settings["fusion"]))
@@ -144,58 +137,35 @@ def analyze_text(text, tokens=None, settings=None, extra_detections=()):
     return result
 
 
-def classify_image(image, box=None, classify="full"):
-    """Optional ResNet50 visual signal as (Detection, legacy fields).
-
-    Model problems never raise: the detection is marked "unavailable" instead, so text
-    checks still run. Callers that require the model check the status.
-    """
-    from .ocr import crop_region
+def analyze_image(src, box=None, langs=("en",), classify="full", settings=None):
+    from .ocr import crop_region, extract_text, load_image
 
     if classify not in ("full", "crop", None):
         raise ValueError("classify must be full, crop, or None")
+    pipeline_stage(1, "Load image and run OCR once")
+    image = load_image(src)
+    ocr = extract_text(image, box, langs, return_confidence=True)
     detection = Detection("image_classifier", "disabled")
-    legacy = {
-        "label": None,
-        "confidence": None,
-        "probs": None,
-        "tier": None,
-        "warning": None,
-    }
+    legacy = {"label": None, "confidence": None, "probs": None, "warning": None}
     if classify:
         try:
-            from . import config
             from .model import get_classifier, predict_image
 
-            if not config.MODEL_PATH.is_file():
-                raise FileNotFoundError(config.MODEL_PATH)
-            thresholds = artifacts.thresholds_for("image", config.MODEL_PATH)
-            if thresholds is None:
-                detection = Detection(
-                    "image_classifier",
-                    "unavailable",
-                    detail="No validated thresholds for this image model file",
-                )
-                legacy["warning"] = detection.detail
-                return detection, legacy
             target = crop_region(image, box) if classify == "crop" else image
             label, confidence, probs = predict_image(get_classifier(), target)
-            score = probs["phishing"] / 100
-            level = artifacts.tier(score, thresholds)
             detection = Detection(
-                "image_classifier", model_score=round(score, 4), tier=level
-            )
-            if level:
-                detection.findings.append(
+                "image_classifier",
+                findings=[
                     Finding(
                         "image_classifier",
-                        artifacts.TIER_SCORES[level],
+                        probs["phishing"] / 100,
                         "Visual classifier signal",
-                        "The image model found visual patterns similar to known phishing web pages.",
+                        "The image model found visual patterns associated with phishing.",
                         "ResNet50",
                     )
-                )
-            legacy.update(label=label, confidence=confidence, probs=probs, tier=level)
+                ],
+            )
+            legacy.update(label=label, confidence=confidence, probs=probs)
         except Exception:
             logging.getLogger(__name__).exception(
                 "Optional image classifier unavailable"
@@ -206,18 +176,6 @@ def classify_image(image, box=None, classify="full"):
                 detail="Model could not be loaded or evaluated",
             )
             legacy["warning"] = detection.detail
-    return detection, legacy
-
-
-def analyze_image(src, box=None, langs=("en",), classify="full", settings=None):
-    from .ocr import extract_text, load_image
-
-    if classify not in ("full", "crop", None):
-        raise ValueError("classify must be full, crop, or None")
-    pipeline_stage(1, "Load image and run OCR once")
-    image = load_image(src)
-    ocr = extract_text(image, box, langs, return_confidence=True)
-    detection, legacy = classify_image(image, box, classify)
     result = analyze_text(
         ocr["text"], ocr["tokens"], settings=settings, extra_detections=[detection]
     )

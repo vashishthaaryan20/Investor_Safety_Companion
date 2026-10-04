@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "SANGYAN Shield",
+    "name": "mobile",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": ["sangyanshield", "mobile"],
-    "userInterfaceStyle": "dark",
+    "scheme": "mobile",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -17,18 +17,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.ashhhh69.mobile",
-      "allowBackup": false,
-      "blockedPermissions": [
-        "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -39,23 +28,11 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#05090C",
+          "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "cameraPermission": "SANGYAN Shield uses the camera to photograph suspicious investment messages so they can be checked for scam signs.",
-          "photosPermission": "SANGYAN Shield opens your screenshots so you can check them for scam signs.",
-          "microphonePermission": false
-        }
-      ],
-      "./plugins/with-screen-context",
-      "./plugins/with-network-security",
-      "./plugins/with-android-build-memory",
-      "./plugins/with-font-scale-config"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

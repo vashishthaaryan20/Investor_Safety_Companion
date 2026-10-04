@@ -15,4 +15,4 @@ def analyze(*args, **kwargs):
     return run(*args, **kwargs)
 
 
-__all__ = ["extract_text", "find_urls"]
+__all__ = ["analyze", "extract_text", "find_urls"]

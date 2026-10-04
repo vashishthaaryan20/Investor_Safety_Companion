@@ -57,4 +57,4 @@ android/.gradle/
 android/app/build/
 ios/Pods/
 output/logs/
-
+"@ | Set-Content .gitignore

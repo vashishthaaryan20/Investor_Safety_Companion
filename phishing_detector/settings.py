@@ -39,13 +39,6 @@ def validate_settings(value):
             raise ValueError(f"Invalid official domain for {name}")
         normalized[name.casefold().strip()] = sorted(set(hosts))
     settings["brands"] = normalized
-    extra = settings.get("official_domains", [])
-    if not isinstance(extra, list):
-        raise TypeError("official_domains must be a list of domains")
-    hosts = [hostname(d) if isinstance(d, str) else "" for d in extra]
-    if any(not host or "." not in host for host in hosts):
-        raise ValueError("Invalid official domain")
-    settings["official_domains"] = sorted(set(hosts).union(*normalized.values()))
     entries = settings.get("blocklist", [])
     if not isinstance(entries, list):
         raise TypeError("blocklist must be a list")
