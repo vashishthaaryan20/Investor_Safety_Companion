@@ -53,7 +53,7 @@ Removing the adb reverse simulates "backend unreachable". The fault server is te
 | C10 | Share an image the app may not read | Graceful failure | `SecurityException` from the shell test harness handled: "capture failed", nothing sent | PASS |
 | C8 | 36 MP (35 MB) image through Share | Downsampled and checked, or a clear "too large" | Checked; cold OCR on the noise image took 23 s, inside the 75 s production limit | PASS |
 | C8b | 10 px image | Clear "too small" message | First run showed a generic "image problem"; after the fix: "This image is too small to read" with tips | PASS (D12) |
-| C2 | Network lost on the phone | Clear failure, no result claimed | Airplane mode drops the adb link, so the app's network was blocked with `cmd connectivity set-package-networking-enabled false`. Packets are dropped silently, so the app shows "Taking longer than usual" with "Cancel check" until its 90 s timeout; after restoring the network, a retry gave the normal result. A refused connection (C1) fails at once | PASS (limited) |
+| C2 | Network lost on the phone | Clear failure, no result claimed | Airplane mode drops the adb link, so the app's network was blocked with `cmd connectivity set-package-networking-enabled false`. Packets are dropped silently; after 84 s the app was still showing "Taking longer than usual" with "Cancel check" and had claimed no result. The switch to the timeout screen at the 90 s request limit was not observed (testing stopped). After the network was restored, the check returned its normal result. A refused connection (C1) fails at once | PASS (limited) |
 | R1 | Release APK against the LAN backend (`http://10.202.254.3:8000`) | Same results as the test build | Scam text High 100, legitimate SIP Low 0 | PASS |
 | R2 | Regression on the build with the merged engine | Same ratings as before the merge | Tile capture of the guaranteed-returns image Risky 40 (same as L1); pasted scam High 100; legitimate SIP Low; blank/blurred/noise stay INCONCLUSIVE | PASS |
 
@@ -94,7 +94,7 @@ Automated checks after the fixes and the merge: `pytest` 58 passed, `tsc --noEmi
 - OCR misreads `https://` as `https:II` in some screenshots, so a link in an image can score lower than the same link pasted as text (L3).
 - The image classifier (`.cache/models/model.pth`, not in git) now loads, but it was trained on website screenshots and labels message screenshots "legitimate". It cannot lower a score, so ratings come from OCR, the engine's text checks and the investor-safety rules. The text classifier, URL model and reputation lists are not trained or configured here; the result screen lists them as unavailable.
 - `training.json` points at `code/data`; in this repo layout the prepared data is elsewhere, so `train_all --check` needs a config with the correct path.
-- If the network silently drops packets, a check waits up to the app's 90 s timeout before failing; "Cancel check" is available throughout.
+- If the network silently drops packets, a check keeps waiting (the app's request limit is 90 s); "Cancel check" is available throughout.
 - The bottom tab bar writes its three icons as small PNGs (about 4 KB per launch) to the app cache. They hold no user content; Android clears the cache when space runs low.
 - Release builds read the API address at `expo prebuild` time; `EXPO_PUBLIC_API_BASE_URL` overrides `api-config.json`, so it must not be left set from a test build.
 - Live URL reputation lookups (Safe Browsing, PhishTank/OpenPhish) are not configured.
