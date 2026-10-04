@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 {
   "sources": [
     {
@@ -15,21 +14,3 @@
   ]
 }
 
-=======
-{
-  "sources": [
-    {
-      "path": "../../data/raw/messages.csv",
-      "columns": {"text": "message", "label": "verdict", "group": "campaign"},
-      "labels": {"genuine": "legitimate", "scam": "phishing"},
-      "source": "reviewed_messages"
-    },
-    {
-      "path": "../../data/raw/reports.jsonl",
-      "columns": {"text": "body", "label": "confirmed_label", "group": "campaign_id"},
-      "source": "reviewed_reports"
-    }
-  ]
-}
-
->>>>>>> anwesha
