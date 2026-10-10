@@ -1,0 +1,3 @@
+id,label,text,image_path,group,split,source
+reviewed-001,legitimate,"Never share your OTP.",,notice-001,val,reviewed_messages
+reviewed-002,phishing,"Send your OTP immediately.",,scam-001,val,reviewed_messages

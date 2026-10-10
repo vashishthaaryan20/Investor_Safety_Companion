@@ -1,0 +1,7 @@
+# Install CUDA torch/torchvision separately before this file.
+numpy
+pillow
+python-dotenv
+boto3
+scikit-learn
+joblib
